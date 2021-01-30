@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import fs from 'fs';
 
-export default function CreateMappingsFolderAndUSMAPFile() {
+export default async function CreateMappingsFolderAndUSMAPFile() {
     const map = await (await fetch((await (await fetch('https://benbotfn.tk/api/v1/mappings')).json())[0].url)).text();
 
     if(!fs.existsSync('./mappings')) {

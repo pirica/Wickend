@@ -125,23 +125,23 @@ export default class Wick {
         return this.extractors;
     }
 
-    /**
-     * Searches through all extractors and try to find the file and extract the JSON.
-     * 
-     * @returns Object
-     */
-    getJSON(file) {
-        let json = null;
+    // /**
+    //  * Searches through all extractors and try to find the file and extract the JSON.
+    //  * 
+    //  * @returns Object
+    //  */
+    // getJSON(file) {
+    //     let json = null;
 
-        Object.keys(this.extractors).map(e => this.extractors[e]).forEach((extractor) => {
-            try {
-                const Pak = new Package(extractor.get_file(file));
-                console.log(Pak, 'sad')
-            } catch(err) {
-                console.log(err);
-            }
-        });
-    }
+    //     Object.keys(this.extractors).map(e => this.extractors[e]).forEach((extractor) => {
+    //         try {
+    //             const Pak = new Package(extractor.get_file(file));
+    //             console.log(Pak, 'sad')
+    //         } catch(err) {
+    //             console.log(err);
+    //         }
+    //     });
+    // }
 
     /**
      * Get AES Key for a package.

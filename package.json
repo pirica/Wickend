@@ -5,7 +5,7 @@
   "main": "index.mjs",
   "type": "module",
   "scripts": {
-    "run": "node --experimental-json-modules index.mjs"
+    "run": "node --experimental-json-modules test/index.mjs"
   },
   "author": "",
   "license": "ISC",
