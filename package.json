@@ -1,7 +1,6 @@
 {
   "name": "wickend",
   "version": "0.0.1",
-  "description": "",
   "main": "index.mjs",
   "type": "module",
   "scripts": {
@@ -14,5 +13,18 @@
     "node": "^14.15.2",
     "node-fetch": "^2.6.1",
     "node-wick": "^5.0.0"
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tectors/Wick.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Tectors/Wick/issues"
+  },
+  "homepage": "https://github.com/Tectors/Wick#readme",
+  "description": ""
 }
