@@ -1,0 +1,18 @@
+{
+  "name": "wickend",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.mjs",
+  "type": "module",
+  "scripts": {
+    "run": "node --experimental-json-modules index.mjs"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "google-spreadsheet": "^3.1.15",
+    "node": "^14.15.2",
+    "node-fetch": "^2.6.1",
+    "node-wick": "^5.0.0"
+  }
+}
