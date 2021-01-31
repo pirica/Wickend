@@ -79,11 +79,12 @@ export default class Wick {
             Backpacks: 'FortniteGame/Content/Athena/Items/Cosmetics/Backpacks/',
             Specializations: 'FortniteGame/Content/Athena/Heroes/Specializations/',
             Series: 'FortniteGame/Content/Athena/Items/Cosmetics/Series/',
-            Textures: [
-                'FortniteGame/Content/Characters/Player',
-                'Textures'
-            ],
-            Meta: 'FortniteGame/Content/Athena/Items/Cosmetics/Metadata/'
+            // Textures: [
+            //     'FortniteGame/Content/Characters/Player',
+            //     'Textures'
+            // ],
+            Meta: 'FortniteGame/Content/Athena/Items/Cosmetics/Metadata/',
+            // BackMesh: 'FortniteGame/Content/Accessories/FORT_Backpacks/'
         }
 
         /**
@@ -177,8 +178,9 @@ export default class Wick {
                             if(json.exports[0]) json._path = f;
                             json._name = f.split('/').pop().split('.')[0];
                             this.sorted[type][f.split('/').pop().split('.')[0]] = json;
+                            
                         } catch(error) {
-                            // console.error(error.message.replace(/\n/g, ''));
+                            // if(type === 'Textures') console.error(error.message.replace(/\n/g, ''));
                         }
                     });
 
@@ -204,7 +206,7 @@ export default class Wick {
         const Emote = this.sorted.Emotes[EID].exports[0];
 
         const Series = Emote.Series ? this.getSeries(Emote.Series.import) : null;
-        const Set = Emote.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.sorted.Meta.CosmeticSets.exports[0][Emote.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.'))] : null;
+        const Set = Emote.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(Backpack) : null;
 
         return !beautified ? {
             ...Emote,
@@ -238,10 +240,40 @@ export default class Wick {
      * @returns Object
      */
     getBID(BID, beautified=true) {
-        return {
-            not: 'done',
-            sor: 'ry'
-        }
+        const id = Object.keys(this.sorted.Backpacks).find(c => c.toLowerCase() === BID.toLowerCase());
+        if(!this.sorted.Backpacks[id]) return null;
+
+        const { [id]: { exports, imported_packages, _path } } = this.sorted.Backpacks;
+
+        const Backpack = exports[0];
+        const Set = Backpack.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(Backpack) : null;
+        const Series = Backpack.Series ? this.getSeries(Backpack.Series.import) : null;
+
+        const Meshes = [];
+        const Parts = [];
+
+        Backpack.CharacterParts.forEach((part) => {
+            // console.log(partw)
+        });
+        
+       return !beautified ? {
+            ...Backpack,
+            Parts,
+            Meshes,
+            Series,
+            Set
+        } : {
+            ...this.getItemDefaultData(Backpack),
+            images: {
+                small: Backpack.SmallPreviewImage ? this.replaceStringName(Backpack.SmallPreviewImage.asset_path_name) : null,
+                large: Backpack.LargePreviewImage ? this.replaceStringName(Backpack.LargePreviewImage.asset_path_name) : null,
+                displayAsset: Backpack.DisplayAssetPath ? this.replaceStringName(Backpack.DisplayAssetPath.asset_path_name) : null
+            },
+            id,
+            definition: {
+                backbling: _path
+            }
+        };
     } 
 
     /**
@@ -255,12 +287,12 @@ export default class Wick {
         const id = Object.keys(this.sorted.Characters).find(c => c.toLowerCase() === CID.toLowerCase());
         if(!this.sorted.Characters[id]) return null;
 
-        const { [id]: { exports, imported_packages, _path, _name } } = this.sorted.Characters;
+        const { [id]: { exports, imported_packages, _path } } = this.sorted.Characters;
 
         const Character = exports[0];
         const Hero = Object.keys(this.sorted.Heroes).find(h => this.sorted.Heroes[h].exports[0].export_index === Character.HeroDefinition.import);
         const HeroDefinition = this.sorted.Heroes[Hero].exports[0];
-        const Set = Character.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.sorted.Meta.CosmeticSets.exports[0][Character.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.'))] : null;
+        const Set = Character.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(Character) : null;
 
         const Specializations = this.sorted.Specializations[Object.keys(this.sorted.Specializations).find(s => s === HeroDefinition.Specializations[0].asset_path_name.split('/').pop().split('.')[0])].exports[0];
         const Meshes = [];
@@ -323,7 +355,7 @@ export default class Wick {
      */
     getItemDefaultData(Item) {
         const Series = Item.Series ? this.getSeries(Item.Series.import) : null;
-        const Set = Item.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.sorted.Meta.CosmeticSets.exports[0][Item.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.'))] : null;
+        const Set = Item.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSet(Item) : null;
 
         return {
             name: Item.DisplayName.string,
@@ -338,14 +370,35 @@ export default class Wick {
                 display: Item.Rarity,
                 value: Item.Rarity.toLowerCase()
             },
-            set: Set ? {
-                name: Set.DisplayName.string,
-                namespace: Set.DisplayName.string.namespace,
-                tag: Set.Tag.TagName,
-                description: Set.Description.string
-            } : null,
+            set: Set,
             series: Series
         }
+    }
+
+    /**
+     * Get set information from a item.
+     * 
+     * @param Item Athena item export.
+     * @returns {Object}
+     */
+    getSet(Item) {
+        const Set = this.getSetObject(Item);
+
+        return {
+            name: Set.DisplayName.string,
+            namespace: Set.DisplayName.string.namespace,
+            tag: Set.Tag.TagName,
+            description: Set.Description.string
+        };
+    }
+
+    /**
+     * Get raw information about a item's set.
+     * 
+     * @param Item An athena item export.
+     */
+    getSetObject(Item) {
+        return this.sorted.Meta.CosmeticSets.exports[0][Item.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.'))];
     }
 
     /**
@@ -390,7 +443,6 @@ export default class Wick {
      * Searches through all extractors and try to find the file and extract the JSON.
      * 
      * @returns Object
-     * @param {String} file The path.
      */
     getJSON(file, extractor) {
         let json = null;

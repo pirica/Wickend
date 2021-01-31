@@ -13,7 +13,13 @@ const path = 'C:\\Games\\Fortnite\\FortniteGame\\Content\\Paks\\';
         log: console.log
     });
 
+    global.wick = wick;
+
     await wick.extract();
 
-    console.log(wick.getCID('CID_784_Athena_Commando_F_RenegadeRaiderFire'));
+    await new Promise((resolve) => {
+        setTimeout(() => {
+            
+        }, 10000000)
+    })
 })();
