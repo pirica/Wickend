@@ -68,6 +68,27 @@ export default class Wick {
         this.log = data.log;
 
         /**
+         * Sorting of data.
+         * 
+         * @type {Object}
+         */
+        this.sorting = {
+            Characters: 'FortniteGame/Content/Athena/Items/Cosmetics/Characters/',
+            Heroes: 'FortniteGame/Content/Athena/Heroes/HID_',
+            Emotes: 'FortniteGame/Content/Athena/Items/Cosmetics/Dances/',
+            Backpacks: 'FortniteGame/Content/Athena/Items/Cosmetics/Backpacks/',
+            Specializations: 'FortniteGame/Content/Athena/Heroes/Specializations/',
+            Series: 'FortniteGame/Content/Athena/Items/Cosmetics/Series/'
+        }
+
+        /**
+         * Sorted data.
+         * 
+         * @type {Object}
+         */
+        this.sorted = {};
+
+        /**
          * All files in the path.
          * 
          * @type Array
@@ -113,8 +134,11 @@ export default class Wick {
                 if(extractor) {
                     if(this.extractors[directory]) return;
                     this.extractors[directory] = extractor;
-    
-                    if(this.log) this.log('\x1b[32m%s\x1b[0m', `Package ${directory} worked with key ${key}: ${extractor.get_file_list().length} files`);
+
+                    const files = extractor.get_file_list();
+                    await this.sort(files, extractor);
+
+                    if(this.log) this.log('\x1b[32m%s\x1b[0m', `Package ${directory} worked with key ${key}: ${files.length} files`);
     
                     resolve(true);
                 } else resolve(null);
@@ -125,23 +149,213 @@ export default class Wick {
         return this.extractors;
     }
 
-    // /**
-    //  * Searches through all extractors and try to find the file and extract the JSON.
-    //  * 
-    //  * @returns Object
-    //  */
-    // getJSON(file) {
-    //     let json = null;
+    /**
+     * Sorts files.
+     * 
+     * @param {Array} files Array of files.
+     * @param {Class} extractor Extractor class.
+     */
+    sort(files, extractor) {
+        return new Promise(async (resolve) => {
+            await this.whiler(Object.keys(this.sorting), (type) => {
+                const value = this.sorting[type];
+                const filtered = files.filter(f => f.startsWith(value));
 
-    //     Object.keys(this.extractors).map(e => this.extractors[e]).forEach((extractor) => {
-    //         try {
-    //             const Pak = new Package(extractor.get_file(file));
-    //             console.log(Pak, 'sad')
-    //         } catch(err) {
-    //             console.log(err);
-    //         }
-    //     });
-    // }
+                if(filtered.length > 5) {
+                    if(!this.sorted[type]) this.sorted[type] = {};
+
+                    filtered.forEach((f) => {
+                        try {
+                            const data = new Package(extractor.get_file(f));
+                            const json = data.get_data();
+                            this.sorted[type][f.split('/').pop().split('.')[0]] = json;
+                        } catch(error) {
+                            console.error(error.message.replace(/\n/g, ''));
+                        }
+                    });
+
+                    resolve(type);
+                }
+
+                return true;
+            });
+
+            resolve(null);
+        });
+    }
+
+    /**
+     * Returns data about a Emote.
+     * 
+     * @param {String} EID ID of a emote.
+     * @param {Boolean} beautified If the returned data is beautified or not.
+     * @returns Object
+     */
+    getEID(EID, beautified=true) {
+        if(!this.sorted.Emotes[EID]) return null;
+        const Emote = this.sorted.Emotes[EID].exports[0];
+
+        const Series = Emote.Series ? this.getSeries(Emote.Series.import) : null;
+
+        return !beautified ? {
+            ...Emote,
+            Animation: {
+                Path: this.replaceStringName(Emote.Animation.asset_path_name),
+                Cooldown: Emote.EmoteCooldownSecs
+            },
+            Series
+        } : {
+            ...this.getItemDefaultData(Character),
+            images: {
+                small: Emote.SmallPreviewImage ? this.replaceStringName(Emote.SmallPreviewImage.asset_path_name) : null,
+                large: Emote.LargePreviewImage ? this.replaceStringName(Emote.LargePreviewImage.asset_path_name) : null,
+                displayAsset: Emote.DisplayAssetPath ? this.replaceStringName(Emote.DisplayAssetPath.asset_path_name) : null
+            },
+            animation: {
+                male: this.replaceStringName(Emote.Animation.asset_path_name),
+                female: Emote.AnimationFemaleOverride ? this.replaceStringName(Emote.AnimationFemaleOverride.asset_path_name) : null,
+                cooldown: Emote.EmoteCooldownSecs
+            }
+        }
+    }
+
+    /**
+     * Returns data about a Back Bling.
+     * 
+     * @param {String} BID ID of a Back Bling.
+     * @param {Boolean} beautified If the returned data is beautified or not.
+     * @returns Object
+     */
+    getBID(BID, beautified=true) {
+        return {
+            not: 'done',
+            sor: 'ry'
+        }
+    }
+
+    /**
+     * Returns data about a Skin.
+     * 
+     * @param {String} CID ID of a skin.
+     * @param {Boolean} beautified If the returned data is beautified or not.
+     * @returns Object
+     */
+    getCID(CID, beautified=true) {
+        if(!this.sorted.Characters[CID]) return null;
+        const Character = this.sorted.Characters[CID].exports[0];
+        const HeroDefinition = this.sorted.Heroes[Object.keys(this.sorted.Heroes).find(h => this.sorted.Heroes[h].exports[0].export_index === Character.HeroDefinition.import)].exports[0];
+
+        const Specializations = this.sorted.Specializations[Object.keys(this.sorted.Specializations).find(s => s === HeroDefinition.Specializations[0].asset_path_name.split('/').pop().split('.')[0])].exports[0];
+        const Meshes = [];
+        const Parts = [];
+
+        const Series = Character.Series ? this.getSeries(Character.Series.import) : null;
+
+        Specializations.CharacterParts.forEach((part) => {
+            const json = this.getJSON(this.replaceStringName(part.asset_path_name));
+            if(json) {
+                Meshes.push(json.exports);
+                Parts.push(this.replaceStringName(json.exports[1].SkeletalMesh.asset_path_name));
+            }
+        });
+
+        return !beautified ? {
+            ...Character,
+            HeroDefinition,
+            Specializations,
+            Parts,
+            Meshes,
+            Series
+        } : {
+            ...this.getItemDefaultData(Character),
+            images: {
+                small: HeroDefinition.SmallPreviewImage ? this.replaceStringName(HeroDefinition.SmallPreviewImage.asset_path_name) : null,
+                large: HeroDefinition.LargePreviewImage ? this.replaceStringName(HeroDefinition.LargePreviewImage.asset_path_name) : null,
+                displayAsset: Character.DisplayAssetPath ? this.replaceStringName(Character.DisplayAssetPath.asset_path_name) : null
+            },
+            parts: {
+                body: Parts[0],
+                head: Parts[1]
+            }
+        };
+    }
+
+    /**
+     * Normal information like the name of the item.
+     * 
+     * @param Item Object of a Athena item.
+     * @returns {Object}
+     */
+    getItemDefaultData(Item) {
+        const Series = Item.Series ? this.getSeries(Item.Series.import) : null;
+
+        return {
+            name: Item.DisplayName.string,
+            description: Item.Description.string.trim(),
+            gameplayTags: Item.GameplayTags.gameplay_tags,
+            type: Item.ShortDescription.string,
+            rarity: Item.Rarity,
+            series: Series
+        }
+    }
+
+    /**
+     * Get series information.
+     * 
+     * @param {String} import_index The import number from a Athena item object.
+     * @returns {Object}
+     */
+    getSeries(import_index) {
+        const Series = this.getSeriesObject(import_index);
+
+        if(!Series) return null;
+
+        return {
+            background: Series.exports[0].BackgroundTexture ? this.replaceStringName(Series.exports[0].BackgroundTexture.asset_path_name) : null,
+            card: Series.exports[0].ItemCardMaterial ? this.replaceStringName(Series.exports[0].ItemCardMaterial.asset_path_name) : null,
+            material: Series.exports[0].BackgroundMaterial ? this.replaceStringName(Series.exports[0].BackgroundMaterial.asset_path_name) : null,
+            name: Series.exports[0].DisplayName.string,
+            colors: Series.exports[0].Colors
+        }
+    }
+
+    /**
+     * Get series object.
+     * 
+     * @param {String} import_index The import number from a Athena item object.
+     */
+    getSeriesObject(import_index) {
+        return this.sorted.Series[Object.keys(this.sorted.Series).find(s => this.sorted.Series[s].exports[0].export_index === import_index)];
+    }
+
+    /**
+     * Replaces and adds needed strings.
+     * 
+     * @param {String} name String.
+     */
+    replaceStringName(name) {
+        return name.split('.')[0].replace('/Game', 'FortniteGame/Content') + '.uasset';
+    }
+
+    /**
+     * Searches through all extractors and try to find the file and extract the JSON.
+     * 
+     * @returns Object
+     */
+    getJSON(file) {
+        let json = null;
+
+        Object.keys(this.extractors).map(e => this.extractors[e]).forEach((extractor) => {
+            try {
+                const Pak = new Package(extractor.get_file(file));
+                json = Pak.get_data();
+            } catch(err) {
+                // console.log(err);
+            }
+        });
+
+        return json;
+    }
 
     /**
      * Get AES Key for a package.

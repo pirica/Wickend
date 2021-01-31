@@ -1,7 +1,7 @@
-import { Mappings, Wick } from '../index.mjs';
 import fetch from 'node-fetch';
+import { Wick } from '../index.mjs';
 
-Mappings();
+const path = 'C:\\Games\\Fortnite\\FortniteGame\\Content\\Paks\\';
 
 (async () => {
     const chain = await (await fetch('https://benbotfn.tk/api/v1/aes')).json();
@@ -9,9 +9,11 @@ Mappings();
     const wick = new Wick({
         extract: false,
         chain,
-        path: 'C:\\Games\\Fortnite\\FortniteGame\\Content\\Paks\\',
+        path,
         log: console.log
     });
 
     await wick.extract();
+
+    console.log(wick.getCID('CID_784_Athena_Commando_F_RenegadeRaiderFire'));
 })();

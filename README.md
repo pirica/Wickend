@@ -38,6 +38,28 @@ Mappings();
 
 ### Functions
 
+## getEID
+Returns data about a Emote.
+
+- **{String}** EID ID of a emote.
+- **{Boolean}** beautified If the returned data is beautified or not.
+
+### Usage
+```js
+wick.getEID();
+```
+
+## getCID
+Returns data about a Skin.
+
+- **{String}** CID ID of a Skin.
+- **{Boolean}** beautified If the returned data is beautified or not.
+
+### Usage
+```js
+wick.getCID();
+```
+
 ## async extract
 Extracts all files in **directory** property defined in the *constructor*.
 
