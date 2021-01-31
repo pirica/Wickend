@@ -1,4 +1,4 @@
-# Wick
+# Wickend
 An easier way to use the popularly known nodejs package called [node-wick](https://github.com/SirWaddles/node-wick) made by [SirWaddles](https://github.com/SirWaddles).
 
 ## Example
