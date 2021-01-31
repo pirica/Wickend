@@ -78,7 +78,12 @@ export default class Wick {
             Emotes: 'FortniteGame/Content/Athena/Items/Cosmetics/Dances/',
             Backpacks: 'FortniteGame/Content/Athena/Items/Cosmetics/Backpacks/',
             Specializations: 'FortniteGame/Content/Athena/Heroes/Specializations/',
-            Series: 'FortniteGame/Content/Athena/Items/Cosmetics/Series/'
+            Series: 'FortniteGame/Content/Athena/Items/Cosmetics/Series/',
+            Textures: [
+                'FortniteGame/Content/Characters/Player',
+                'Textures'
+            ],
+            Meta: 'FortniteGame/Content/Athena/Items/Cosmetics/Metadata/'
         }
 
         /**
@@ -136,7 +141,7 @@ export default class Wick {
                     this.extractors[directory] = extractor;
 
                     const files = extractor.get_file_list();
-                    await this.sort(files, extractor);
+                    this.sort(files, extractor);
 
                     if(this.log) this.log('\x1b[32m%s\x1b[0m', `Package ${directory} worked with key ${key}: ${files.length} files`);
     
@@ -158,19 +163,22 @@ export default class Wick {
     sort(files, extractor) {
         return new Promise(async (resolve) => {
             await this.whiler(Object.keys(this.sorting), (type) => {
-                const value = this.sorting[type];
-                const filtered = files.filter(f => f.startsWith(value));
+                const value = Array.isArray(this.sorting[type]) ? this.sorting[type][0] : this.sorting[type];
+                const filtered = !Array.isArray(this.sorting[type]) ? files.filter(f => f.startsWith(value)) : files.filter(f => f.startsWith(value) && f.includes(this.sorting[type][1]));
 
                 if(filtered.length > 5) {
                     if(!this.sorted[type]) this.sorted[type] = {};
 
                     filtered.forEach((f) => {
                         try {
-                            const data = new Package(extractor.get_file(f));
+                            const raw = extractor.get_file(f);
+                            const data = new Package(raw);
                             const json = data.get_data();
+                            if(json.exports[0]) json._path = f;
+                            json._name = f.split('/').pop().split('.')[0];
                             this.sorted[type][f.split('/').pop().split('.')[0]] = json;
                         } catch(error) {
-                            console.error(error.message.replace(/\n/g, ''));
+                            // console.error(error.message.replace(/\n/g, ''));
                         }
                     });
 
@@ -196,6 +204,7 @@ export default class Wick {
         const Emote = this.sorted.Emotes[EID].exports[0];
 
         const Series = Emote.Series ? this.getSeries(Emote.Series.import) : null;
+        const Set = Emote.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.sorted.Meta.CosmeticSets.exports[0][Emote.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.'))] : null;
 
         return !beautified ? {
             ...Emote,
@@ -203,9 +212,11 @@ export default class Wick {
                 Path: this.replaceStringName(Emote.Animation.asset_path_name),
                 Cooldown: Emote.EmoteCooldownSecs
             },
-            Series
+            Series,
+            Set
         } : {
             ...this.getItemDefaultData(Character),
+            id: EID,
             images: {
                 small: Emote.SmallPreviewImage ? this.replaceStringName(Emote.SmallPreviewImage.asset_path_name) : null,
                 large: Emote.LargePreviewImage ? this.replaceStringName(Emote.LargePreviewImage.asset_path_name) : null,
@@ -231,7 +242,7 @@ export default class Wick {
             not: 'done',
             sor: 'ry'
         }
-    }
+    } 
 
     /**
      * Returns data about a Skin.
@@ -241,9 +252,15 @@ export default class Wick {
      * @returns Object
      */
     getCID(CID, beautified=true) {
-        if(!this.sorted.Characters[CID]) return null;
-        const Character = this.sorted.Characters[CID].exports[0];
-        const HeroDefinition = this.sorted.Heroes[Object.keys(this.sorted.Heroes).find(h => this.sorted.Heroes[h].exports[0].export_index === Character.HeroDefinition.import)].exports[0];
+        const id = Object.keys(this.sorted.Characters).find(c => c.toLowerCase() === CID.toLowerCase());
+        if(!this.sorted.Characters[id]) return null;
+
+        const { [id]: { exports, imported_packages, _path, _name } } = this.sorted.Characters;
+
+        const Character = exports[0];
+        const Hero = Object.keys(this.sorted.Heroes).find(h => this.sorted.Heroes[h].exports[0].export_index === Character.HeroDefinition.import);
+        const HeroDefinition = this.sorted.Heroes[Hero].exports[0];
+        const Set = Character.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.sorted.Meta.CosmeticSets.exports[0][Character.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.'))] : null;
 
         const Specializations = this.sorted.Specializations[Object.keys(this.sorted.Specializations).find(s => s === HeroDefinition.Specializations[0].asset_path_name.split('/').pop().split('.')[0])].exports[0];
         const Meshes = [];
@@ -254,8 +271,20 @@ export default class Wick {
         Specializations.CharacterParts.forEach((part) => {
             const json = this.getJSON(this.replaceStringName(part.asset_path_name));
             if(json) {
-                Meshes.push(json.exports);
-                Parts.push(this.replaceStringName(json.exports[1].SkeletalMesh.asset_path_name));
+                const path = this.replaceStringName(json.exports[1].SkeletalMesh.asset_path_name);
+
+                if(json.exports) json.exports.forEach((exporte) => {
+                    const { MaterialOverrides } = exporte;
+
+                    if(!MaterialOverrides) return;
+
+                    const { OverrideMaterial: { asset_path_name } } = MaterialOverrides[0];
+                    const { TextureParameterValues } = this.getJSON(this.replaceStringName(asset_path_name).replace(/FortniteGame\/Content\//g, '')).exports[0];
+
+                });
+                
+                if(json.exports) Meshes.push(json.exports);
+                Parts.push(path);
             }
         });
 
@@ -265,7 +294,8 @@ export default class Wick {
             Specializations,
             Parts,
             Meshes,
-            Series
+            Series,
+            Set
         } : {
             ...this.getItemDefaultData(Character),
             images: {
@@ -273,9 +303,14 @@ export default class Wick {
                 large: HeroDefinition.LargePreviewImage ? this.replaceStringName(HeroDefinition.LargePreviewImage.asset_path_name) : null,
                 displayAsset: Character.DisplayAssetPath ? this.replaceStringName(Character.DisplayAssetPath.asset_path_name) : null
             },
+            id,
             parts: {
                 body: Parts[0],
                 head: Parts[1]
+            },
+            definition: {
+                hero: `FortniteGame/Content/Athena/Heroes/${Hero}.uasset`,
+                character: _path
             }
         };
     }
@@ -288,13 +323,27 @@ export default class Wick {
      */
     getItemDefaultData(Item) {
         const Series = Item.Series ? this.getSeries(Item.Series.import) : null;
+        const Set = Item.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.sorted.Meta.CosmeticSets.exports[0][Item.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.'))] : null;
 
         return {
             name: Item.DisplayName.string,
             description: Item.Description.string.trim(),
             gameplayTags: Item.GameplayTags.gameplay_tags,
-            type: Item.ShortDescription.string,
-            rarity: Item.Rarity,
+            type: {
+                display: Item.ShortDescription.string,
+                value: Item.ShortDescription.string.toLowerCase(),
+                shop: Item.GameplayTags.gameplay_tags.includes('Cosmetics.Source.ItemShop'),
+            },
+            rarity: {
+                display: Item.Rarity,
+                value: Item.Rarity.toLowerCase()
+            },
+            set: Set ? {
+                name: Set.DisplayName.string,
+                namespace: Set.DisplayName.string.namespace,
+                tag: Set.Tag.TagName,
+                description: Set.Description.string
+            } : null,
             series: Series
         }
     }
@@ -342,12 +391,14 @@ export default class Wick {
      * 
      * @returns Object
      */
-    getJSON(file) {
+    getJSON(file, extractor) {
         let json = null;
 
-        Object.keys(this.extractors).map(e => this.extractors[e]).forEach((extractor) => {
+        Object.keys(this.extractors).map(e => this.extractors[e]).forEach((extractorr) => {
+            if(extractor) extractorr = extractor;
             try {
-                const Pak = new Package(extractor.get_file(file));
+                const Pak = new Package(extractorr.get_file(file));
+                json._path = file;
                 json = Pak.get_data();
             } catch(err) {
                 // console.log(err);
