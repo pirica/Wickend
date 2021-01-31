@@ -390,6 +390,7 @@ export default class Wick {
      * Searches through all extractors and try to find the file and extract the JSON.
      * 
      * @returns Object
+     * @param {String} file The path.
      */
     getJSON(file, extractor) {
         let json = null;

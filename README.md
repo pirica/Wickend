@@ -38,6 +38,16 @@ Mappings();
 
 ### Functions
 
+## getJSON
+Searches through all extractors and try to find the file and extract the JSON.
+
+- **{String}** file The path.
+
+### Usage
+```js
+wick.getJSON('path');
+```
+
 ## getEID
 Returns data about a Emote.
 
