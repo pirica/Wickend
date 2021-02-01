@@ -50,7 +50,7 @@ Searches through all extractors and try to find the file and extract the JSON.
 wick.getJSON('path');
 ```
 
-## getEID
+## getEmote
 Returns data about a Emote.
 
 - **{String}** EID ID of a emote.
@@ -58,18 +58,117 @@ Returns data about a Emote.
 
 ### Usage
 ```js
-wick.getEID();
+wick.getEmote();
 ```
 
-## getCID
-Returns data about a Skin.
+## getContrail
+Get Contrail by ID.
 
-- **{String}** CID ID of a Skin.
+- **{String}** TID The ID of a Contrail.
 - **{Boolean}** beautified If the returned data is beautified or not.
 
 ### Usage
 ```js
-wick.getCID();
+wick.getContrail();
+```
+
+## getLoadingScreen
+Get Loading Screen by ID.
+
+- **{String}** LSID The ID of a Loading Scren.
+- **{Boolean}** beautified If the returned data is beautified or not.
+
+### Usage
+```js
+wick.getLoadingScreen();
+```
+
+## getSpray
+Get Spray by ID.
+
+- **{String}** SPID The ID of a Spray.
+- **{Boolean}** beautified If the returned data is beautified or not.
+
+### Usage
+```js
+wick.getSpray();
+```
+
+## getWeapon
+Get a Weapon.
+
+- **{String}** id The ID of a Weapon.
+- **{Boolean}** beautified If the returned data is beautified or not.
+
+### Usage
+```js
+wick.getWeapon();
+```
+
+## getPickaxeID
+Returns data about a Pickaxe.
+
+- **{String}** PID ID of a Pickaxe.
+- **{Boolean}** beautified If the returned data is beautified or not.
+
+### Usage
+```js
+wick.getPickaxeID();
+```
+
+## getWrap
+Returns data about a Wrap.
+
+- **{String}** WID ID of a Wrap.
+- **{Boolean}** beautified If the returned data is beautified or not.
+
+### Usage
+```js
+wick.getWrap();
+```
+
+## getToy
+Returns data about a Toy.
+
+- **{String}** TYID ID of a Toy.
+- **{Boolean}** beautified If the returned data is beautified or not.
+
+### Usage
+```js
+wick.getToy();
+```
+
+## getMusicPack
+Returns data about a Music Pack.
+
+- **{String}** MID ID of a Music Pack.
+- **{Boolean}** beautified If the returned data is beautified or not.
+
+### Usage
+```js
+wick.getMusicPack();
+```
+
+## getGlider
+Returns data about a Glider.
+
+- **{String}** GID ID of a Glider.
+- **{Boolean}** beautified If the returned data is beautified or not.
+
+### Usage
+```js
+wick.getGlider();
+```
+
+## getCharacter
+Returns data about a Character.
+
+- **{String}** CID ID of a Character.
+- **{Boolean}** beautified If the returned data is beautified or not.
+
+### Usage
+```js
+wick.getCharacter();
 ```
 
 ## async extract

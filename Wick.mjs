@@ -79,12 +79,18 @@ export default class Wick {
             Backpacks: 'FortniteGame/Content/Athena/Items/Cosmetics/Backpacks/',
             Specializations: 'FortniteGame/Content/Athena/Heroes/Specializations/',
             Series: 'FortniteGame/Content/Athena/Items/Cosmetics/Series/',
-            // Textures: [
-            //     'FortniteGame/Content/Characters/Player',
-            //     'Textures'
-            // ],
+            Sprays: 'FortniteGame/Content/Athena/Items/Cosmetics/Sprays/',
+            LoadingScreens: 'FortniteGame/Content/Athena/Items/Cosmetics/LoadingScreens/',
+            Pickaxes: 'FortniteGame/Content/Athena/Items/Cosmetics/Pickaxes/',
+            Weapons: 'FortniteGame/Content/Athena/Items/Weapons/',
+            Ammo: 'FortniteGame/Content/Items/Ammo/AmmoData',
+            Balance: 'FortniteGame/Content/Balance',
             Meta: 'FortniteGame/Content/Athena/Items/Cosmetics/Metadata/',
-            // BackMesh: 'FortniteGame/Content/Accessories/FORT_Backpacks/'
+            Contrails: 'FortniteGame/Content/Athena/Items/Cosmetics/Contrails/',
+            Wraps: 'FortniteGame/Content/Athena/Items/Cosmetics/ItemWraps/',
+            Toys: 'FortniteGame/Content/Athena/Items/Cosmetics/Toys/',
+            MusicPacks: 'FortniteGame/Content/Athena/Items/Cosmetics/MusicPacks/',
+            Gliders: 'FortniteGame/Content/Athena/Items/Cosmetics/Gliders/'
         }
 
         /**
@@ -120,7 +126,6 @@ export default class Wick {
      * 
      * @returns Array
      */
-
     async extract() {
         await this.whiler(this.directory, (directory) => {
             const path = this.path + directory;
@@ -167,7 +172,9 @@ export default class Wick {
                 const value = Array.isArray(this.sorting[type]) ? this.sorting[type][0] : this.sorting[type];
                 const filtered = !Array.isArray(this.sorting[type]) ? files.filter(f => f.startsWith(value)) : files.filter(f => f.startsWith(value) && f.includes(this.sorting[type][1]));
 
-                if(filtered.length > 5) {
+                if(type === 'Ammo') console.log(filtered)
+
+                if(filtered.length > 3) {
                     if(!this.sorted[type]) this.sorted[type] = {};
 
                     filtered.forEach((f) => {
@@ -180,7 +187,7 @@ export default class Wick {
                             this.sorted[type][f.split('/').pop().split('.')[0]] = json;
                             
                         } catch(error) {
-                            // if(type === 'Textures') console.error(error.message.replace(/\n/g, ''));
+                            if(type === 'Ammo') console.error(error.message.replace(/\n/g, ''));
                         }
                     });
 
@@ -195,13 +202,152 @@ export default class Wick {
     }
 
     /**
+     * Returns data about a Glider.
+     * 
+     * (Not case sensitive)
+     * 
+     * @param {String} GID ID of a Glider.
+     * @param {Boolean} beautified If the returned data is beautified or not.
+     * @returns Object
+     */
+    getGlider(GID, beautified=true) {
+        const id = Object.keys(this.sorted.Gliders).find(c => c.toLowerCase() === GID.toLowerCase());
+        if(!this.sorted.Gliders[id]) return null;
+
+        const { [id]: { exports, imported_packages, _path } } = this.sorted.Gliders;
+
+        const Glider = exports[0];
+        const Set = Glider.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(Glider) : null;
+        const Series = Glider.Series ? this.getSeries(Glider.Series.import) : null;
+
+       return !beautified ? {
+            ...Glider,
+            Series,
+            Set
+        } : {
+            ...this.getItemDefaultData(Glider),
+            id,
+            definition: {
+                glider: _path
+            },
+            sounds: {
+                open: Glider.OpenSound ? this.getItemDefaultData(Glider.OpenSound.asset_path_name) : null,
+                close: Glider.CloseSound ? this.getItemDefaultData(Glider.CloseSound.asset_path_name) : null,
+            }
+        };
+    }
+
+    /**
+     * Returns data about a Music Pack.
+     * 
+     * (Not case sensitive)
+     * 
+     * @param {String} MID ID of a Music Pack.
+     * @param {Boolean} beautified If the returned data is beautified or not.
+     * @returns Object
+     */
+    getMusicPack(MID, beautified=true) {
+        const id = Object.keys(this.sorted.MusicPacks).find(c => c.toLowerCase() === MID.toLowerCase());
+        if(!this.sorted.MusicPacks[id]) return null;
+
+        const { [id]: { exports, imported_packages, _path } } = this.sorted.MusicPacks;
+
+        const MusicPack = exports[0];
+        const Set = MusicPack.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(MusicPack) : null;
+        const Series = MusicPack.Series ? this.getSeries(MusicPack.Series.import) : null;
+
+       return !beautified ? {
+            ...MusicPack,
+            Series,
+            Set
+        } : {
+            ...this.getItemDefaultData(MusicPack),
+            id,
+            definition: {
+                musicPack: _path
+            },
+            sound: MusicPack.FrontEndLobbyMusic ? this.replaceStringName(MusicPack.FrontEndLobbyMusic.asset_path_name) : null
+        };
+    }
+
+    /**
+     * Returns data about a Toy.
+     * 
+     * (Not case sensitive)
+     * 
+     * @param {String} TYID ID of a Toy.
+     * @param {Boolean} beautified If the returned data is beautified or not.
+     * @returns Object
+     */
+    getToy(TYID, beautified=true) {
+        const id = Object.keys(this.sorted.Toys).find(c => c.toLowerCase() === TYID.toLowerCase());
+        if(!this.sorted.Toys[id]) return null;
+
+        const { [id]: { exports, imported_packages, _path } } = this.sorted.Toys;
+
+        const Toy = exports[0];
+        const Set = Toy.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(Toy) : null;
+        const Series = Toy.Series ? this.getSeries(Toy.Series.import) : null;
+
+       return !beautified ? {
+            ...Toy,
+            Series,
+            Set
+        } : {
+            ...this.getItemDefaultData(Toy),
+            id,
+            definition: {
+                toy: _path
+            },
+            animation: {
+                male: this.replaceStringName(Toy.Animation.asset_path_name),
+                cooldown: Toy.EmoteCooldownSecs
+            }
+        };
+    }
+
+    /**
+     * Returns data about a Wrap.
+     * 
+     * (Not case sensitive)
+     * 
+     * @param {String} WID ID of a Wrap.
+     * @param {Boolean} beautified If the returned data is beautified or not.
+     * @returns Object
+     */
+    getWrap(WID, beautified=true) {
+        const id = Object.keys(this.sorted.Wraps).find(c => c.toLowerCase() === WID.toLowerCase());
+        if(!this.sorted.Wraps[id]) return null;
+
+        const { [id]: { exports, imported_packages, _path } } = this.sorted.Wraps;
+
+        const Wrap = exports[0];
+        const Set = Wrap.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(Wrap) : null;
+        const Series = Wrap.Series ? this.getSeries(Wrap.Series.import) : null;
+
+       return !beautified ? {
+            ...Wrap,
+            Series,
+            Set
+        } : {
+            ...this.getItemDefaultData(Wrap),
+            id,
+            definition: {
+                wrap: _path
+            }
+        };
+    }
+
+    /**
      * Returns data about a Emote.
+     * 
+     * (Not case sensitive)
      * 
      * @param {String} EID ID of a emote.
      * @param {Boolean} beautified If the returned data is beautified or not.
      * @returns Object
      */
-    getEID(EID, beautified=true) {
+    getEmote(EID, beautified=true) {
         if(!this.sorted.Emotes[EID]) return null;
         const Emote = this.sorted.Emotes[EID].exports[0];
 
@@ -233,13 +379,136 @@ export default class Wick {
     }
 
     /**
-     * Returns data about a Back Bling.
+     * Returns data about a Pickaxe.
      * 
-     * @param {String} BID ID of a Back Bling.
+     * (Not case sensitive)
+     * 
+     * @param {String} PID ID of a Pickaxe.
      * @param {Boolean} beautified If the returned data is beautified or not.
      * @returns Object
      */
-    getBID(BID, beautified=true) {
+    getPickaxeID(PID, beautified=true) {
+        const id = Object.keys(this.sorted.Pickaxes).find(c => c.toLowerCase() === PID.toLowerCase());
+        if(!this.sorted.Pickaxes[id]) return null;
+
+        const { [id]: { exports, imported_packages, _path } } = this.sorted.Pickaxes;
+
+        const Pickaxe = exports[0];
+        const Set = Pickaxe.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(Pickaxe) : null;
+        const Series = Pickaxe.Series ? this.getSeries(Pickaxe.Series.import) : null;
+
+        /* const WeaponDefinition = this.sorted.Weapons; */
+        
+        return !beautified ? {
+            ...Pickaxe,
+            Series,
+            Set
+        } : {
+            ...this.getItemDefaultData(Pickaxe),
+            images: {
+                small: Pickaxe.SmallPreviewImage ? this.replaceStringName(Pickaxe.SmallPreviewImage.asset_path_name) : null,
+                large: Pickaxe.LargePreviewImage ? this.replaceStringName(Pickaxe.LargePreviewImage.asset_path_name) : null,
+                displayAsset: Pickaxe.DisplayAssetPath ? this.replaceStringName(Pickaxe.DisplayAssetPath.asset_path_name) : null
+            },
+            id,
+            definition: {
+                pickaxe: _path
+            }
+        };
+    }
+
+    /**
+     * Get weapon.
+     * 
+     * (Not case sensitive)
+     * 
+     * @param {Object} id Weapon ID.
+     * @returns {Object}
+     */
+    getWeapon(id, beautified=true) {
+        id = Object.keys(this.sorted.Weapons).find(c => c.toLowerCase() === id.toLowerCase());
+        if(!this.sorted.Weapons[id]) return null;
+
+        const { [id]: { exports, imported_packages, _path, _name } } = this.sorted.Weapons;
+
+        const Weapon = exports[0];
+
+        const { exports: AmmoExports, _name: ammoID } = this.sorted.Ammo[Weapon.AmmoData.asset_path_name.split('.')[1].replace(/Athena/, '')];
+
+        const Ammo = AmmoExports[0];
+
+        return !beautified ? {
+            ...Weapon,
+            Ammo
+        } : {
+            ...this.getItemDefaultData(Weapon),
+            sounds: {
+                drop: Weapon.DropSound ? this.replaceStringName(Weapon.DropSound.asset_path_name) : null,
+                pickup: Weapon.PickupSound ? this.replaceStringName(Weapon.PickupSound.asset_path_name) : null,
+                landed: Weapon.LandedSound ? this.replaceStringName(Weapon.LandedSound.asset_path_name) : null
+            },
+            meta: {
+                alwaysCountForCollectionQuest: Weapon.bAlwaysCountForCollectionQuest,
+                canBeStolen: Weapon.bItemCanBeStolen,
+                HasDurability: Weapon.bItemHasDurability,
+                should: {
+                    usePerfectAimWhenTargetingMinSpread: Weapon.bShouldUsePerfectAimWhenTargetingMinSpread,
+                    spawnBulletShellFX: Weapon.bShouldSpawnBulletShellFX
+                },
+                showDirectionalArrowWhenFarOff: Weapon.bShowDirectionalArrowWhenFarOff,
+                targetingPreventsReload: Weapon.bTargetingPreventsReload,
+                traceThroughPawns: Weapon.bTraceThroughPawns,
+                preventDefaultPreload: Weapon.bPreventDefaultPreload,
+                neverPersisted: Weapon.bNeverPersisted,
+                showReticleHitNotifyAtImpactLocation: Weapon.bShowReticleHitNotifyAtImpactLocation,
+                showReticleHitNotifyAtImpactLocation: Weapon.bShowReticleHitNotifyAtImpactLocation,
+            },
+            tier: Weapon.Tier,
+            searchTags: Weapon.SearchTags ? Weapon.SearchTags.string.split(' ') : null,
+            type: {
+                display: Weapon.SearchTags ? Weapon.SearchTags.string.split(' ')[0].slice(0, -1) : null,
+                value: Weapon.SearchTags ? Weapon.SearchTags.string.split(' ')[0].slice(0, -1).toLowerCase() : null
+            },
+            ammo: {
+                ...this.getItemDefaultData(Ammo, true),
+                images: this.getImages(Ammo),
+                sounds: {
+                    drop: Ammo.DropSound ? this.replaceStringName(Ammo.DropSound.asset_path_name) : null,
+                    pickup: Ammo.PickupSound ? this.replaceStringName(Ammo.PickupSound.asset_path_name) : null,
+                    landed: Ammo.LandedSound ? this.replaceStringName(Ammo.LandedSound.asset_path_name) : null
+                },
+                max: Ammo.MaxStackSize.Value,
+                type: {
+                    display: 'Ammo',
+                    value: 'ammo'
+                },
+                id: ammoID,
+                name: Ammo.DisplayName.string.split('Ammo: ')[1],
+                dropCount: Ammo.DropCount,
+                meta: {
+                    showDirectionalArrowWhenFarOff: Ammo.bShowDirectionalArrowWhenFarOff,
+                    supportsQuickbarFocus: Ammo.bSupportsQuickbarFocus,
+                    triggersFeedbackLines: Ammo.bTriggersFeedbackLines
+                },
+                searchTags: Ammo.SearchTags ? Ammo.SearchTags.string.split(' ') : null,
+            },
+            actualAnalyticNames: Weapon.ActualAnalyticFNames,
+            analyticTags: Weapon.AnalyticTags.gameplay_tags,
+            id: _name,
+            creativeTagsHelper: Weapon.CreativeTagsHelper ? Weapon.CreativeTagsHelper.CreativeTags : null
+        }
+    }
+
+    /**
+     * Returns data about a Back Pack.
+     * 
+     * (Not case sensitive)
+     * 
+     * @param {String} BID ID of a Back Pack.
+     * @param {Boolean} beautified If the returned data is beautified or not.
+     * @returns Object
+     */
+    getBackPack(BID, beautified=true) {
         const id = Object.keys(this.sorted.Backpacks).find(c => c.toLowerCase() === BID.toLowerCase());
         if(!this.sorted.Backpacks[id]) return null;
 
@@ -253,7 +522,7 @@ export default class Wick {
         const Parts = [];
 
         Backpack.CharacterParts.forEach((part) => {
-            // console.log(partw)
+            /* console.log(partw) */
         });
         
        return !beautified ? {
@@ -264,26 +533,120 @@ export default class Wick {
             Set
         } : {
             ...this.getItemDefaultData(Backpack),
-            images: {
-                small: Backpack.SmallPreviewImage ? this.replaceStringName(Backpack.SmallPreviewImage.asset_path_name) : null,
-                large: Backpack.LargePreviewImage ? this.replaceStringName(Backpack.LargePreviewImage.asset_path_name) : null,
-                displayAsset: Backpack.DisplayAssetPath ? this.replaceStringName(Backpack.DisplayAssetPath.asset_path_name) : null
-            },
             id,
             definition: {
                 backbling: _path
             }
         };
-    } 
+    }
 
     /**
-     * Returns data about a Skin.
+     * Returns data about a Spray.
      * 
-     * @param {String} CID ID of a skin.
+     * (Not case sensitive)
+     * 
+     * @param {String} SPID ID of a Spray.
      * @param {Boolean} beautified If the returned data is beautified or not.
      * @returns Object
      */
-    getCID(CID, beautified=true) {
+    getSpray(SPID, beautified=true) {
+        const id = Object.keys(this.sorted.Sprays).find(c => c.toLowerCase() === SPID.toLowerCase());
+        if(!this.sorted.Sprays[id]) return null;
+
+        const { [id]: { exports, imported_packages, _path } } = this.sorted.Sprays;
+
+        const Spray = exports[0];
+        const Set = Spray.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(Spray) : null;
+        const Series = Spray.Series ? this.getSeries(Spray.Series.import) : null;
+
+       return !beautified ? {
+            ...Spray,
+            Series,
+            Set
+        } : {
+            ...this.getItemDefaultData(Spray),
+            id,
+            definition: {
+                spray: _path,
+                material: Spray.DecalMaterial ? this.replaceStringName(Spray.DecalMaterial.asset_path_name) : null
+            }
+        };
+    }
+
+    /**
+     * Get Loading Screen by ID.
+     * 
+     * (Not case sensitive)
+     * 
+     * @param LSID The ID of a Loading Screen.
+     * @param beautified If the returned json looks good or not.
+     * @returns Object
+     */
+    getLoadingScreen(LSID, beautified=true) {
+        const id = Object.keys(this.sorted.LoadingScreens).find(c => c.toLowerCase() === LSID.toLowerCase());
+        if(!this.sorted.LoadingScreens[id]) return null;
+
+        const { [id]: { exports, imported_packages, _path } } = this.sorted.LoadingScreens;
+
+        const LoadingScreen = exports[0];
+        const Set = LoadingScreen.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(LoadingScreen) : null;
+        const Series = LoadingScreen.Series ? this.getSeries(LoadingScreen.Series.import) : null;
+
+       return !beautified ? {
+            ...LoadingScreen,
+            Series,
+            Set
+        } : {
+            ...this.getItemDefaultData(LoadingScreen),
+            id,
+            definition: {
+                loadingscreen: _path
+            }
+        };
+    }
+
+    /**
+     * Get Contrail by ID.
+     * 
+     * (Not case sensitive)
+     * 
+     * @param TID The ID of a Contrail.
+     * @param beautified If the returned json looks good or not.
+     * @returns Object
+     */
+    getContrail(TID, beautified=true) {
+        const id = Object.keys(this.sorted.Contrails).find(c => c.toLowerCase() === TID.toLowerCase());
+        if(!this.sorted.Contrails[id]) return null;
+
+        const { [id]: { exports, imported_packages, _path } } = this.sorted.Contrails;
+
+        const Contrail = exports[0];
+        const Set = Contrail.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(Contrail) : null;
+        const Series = Contrail.Series ? this.getSeries(Contrail.Series.import) : null;
+
+       return !beautified ? {
+            ...Contrail,
+            Series,
+            Set
+        } : {
+            ...this.getItemDefaultData(Contrail),
+            id,
+            definition: {
+                contrail: _path
+            }
+        };
+    }
+
+    /**
+     * Returns data about a Character.
+     * 
+     * (Not case sensitive)
+     * 
+     * @param {String} CID ID of a Character.
+     * @param {Boolean} beautified If the returned data is beautified or not.
+     * @returns Object
+     */
+    getCharacter(CID, beautified=true) {
         const id = Object.keys(this.sorted.Characters).find(c => c.toLowerCase() === CID.toLowerCase());
         if(!this.sorted.Characters[id]) return null;
 
@@ -330,11 +693,6 @@ export default class Wick {
             Set
         } : {
             ...this.getItemDefaultData(Character),
-            images: {
-                small: HeroDefinition.SmallPreviewImage ? this.replaceStringName(HeroDefinition.SmallPreviewImage.asset_path_name) : null,
-                large: HeroDefinition.LargePreviewImage ? this.replaceStringName(HeroDefinition.LargePreviewImage.asset_path_name) : null,
-                displayAsset: Character.DisplayAssetPath ? this.replaceStringName(Character.DisplayAssetPath.asset_path_name) : null
-            },
             id,
             parts: {
                 body: Parts[0],
@@ -348,30 +706,55 @@ export default class Wick {
     }
 
     /**
+     * Returns images.
+     * 
+     * @param O A type of Object.
+     * @returns {Object}
+     */
+    getImages(O) {
+        return {
+            small: O.SmallPreviewImage ? this.replaceStringName(O.SmallPreviewImage.asset_path_name) : null,
+            hudAmmoSmallPreview: O.HUDAmmoSmallPreviewImage ? this.replaceStringName(O.HUDAmmoSmallPreviewImage.asset_path_name) : null,
+            large: O.LargePreviewImage ? this.replaceStringName(O.LargePreviewImage.asset_path_name) : null,
+            displayAsset: O.DisplayAssetPath ? this.replaceStringName(O.DisplayAssetPath.asset_path_name) : null,
+            decal: O.DecalTexture ? O.DecalTexture.asset_path_name : null,
+            background: O.BackgroundImage ? this.replaceStringName(O.BackgroundImage.asset_path_name) : null,
+            cover: O.CoverArtImage ? this.replaceStringName(O.CoverArtImage.asset_path_name) : null
+        }
+    }
+
+    /**
      * Normal information like the name of the item.
+     * 
+     * (Not case sensitive)
      * 
      * @param Item Object of a Athena item.
      * @returns {Object}
      */
-    getItemDefaultData(Item) {
+    getItemDefaultData(Item, hideExtra) {
         const Series = Item.Series ? this.getSeries(Item.Series.import) : null;
         const Set = Item.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSet(Item) : null;
+        const ShortDescription = Item.ShortDescription || Item.Description;
 
         return {
-            name: Item.DisplayName.string,
+            images: this.getImages(Item),
             description: Item.Description.string.trim(),
             gameplayTags: Item.GameplayTags.gameplay_tags,
-            type: {
-                display: Item.ShortDescription.string,
-                value: Item.ShortDescription.string.toLowerCase(),
-                shop: Item.GameplayTags.gameplay_tags.includes('Cosmetics.Source.ItemShop'),
-            },
-            rarity: {
-                display: Item.Rarity,
-                value: Item.Rarity.toLowerCase()
-            },
-            set: Set,
-            series: Series
+            ...hideExtra ? {} : {
+                type: {
+                    display: ShortDescription.string,
+                    value: ShortDescription ? ShortDescription.string.toLowerCase() : null,
+                    shop: Item.GameplayTags.gameplay_tags.includes('Cosmetics.Source.ItemShop'),
+                },
+                rarity: {
+                    display: Item.Rarity,
+                    value: Item.Rarity ? Item.Rarity.toLowerCase() : null,
+                    backend: `EFortRarity::${Item.Rarity}`
+                },
+                set: Set,
+                series: Series,
+                name: Item.DisplayName.string
+            }
         }
     }
 
@@ -454,7 +837,7 @@ export default class Wick {
                 json._path = file;
                 json = Pak.get_data();
             } catch(err) {
-                // console.log(err);
+                /* console.log(err); */
             }
         });
 
