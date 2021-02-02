@@ -50,6 +50,17 @@ Searches through all extractors and try to find the file and extract the JSON.
 wick.getJSON('path');
 ```
 
+## getTandem
+Returns data about a Tandem.
+
+- **{String}** id Name of a Tandem.
+- **{Boolean}** beautified If the returned data is beautified or not.
+
+### Usage
+```js
+wick.getTandem();
+```
+
 ## getEmote
 Returns data about a Emote.
 

@@ -90,7 +90,12 @@ export default class Wick {
             Wraps: 'FortniteGame/Content/Athena/Items/Cosmetics/ItemWraps/',
             Toys: 'FortniteGame/Content/Athena/Items/Cosmetics/Toys/',
             MusicPacks: 'FortniteGame/Content/Athena/Items/Cosmetics/MusicPacks/',
-            Gliders: 'FortniteGame/Content/Athena/Items/Cosmetics/Gliders/'
+            Gliders: 'FortniteGame/Content/Athena/Items/Cosmetics/Gliders/',
+            Banners: 'FortniteGame/Content/2dAssets/Banners/',
+            Emojis: 'FortniteGame/Content/2dAssets/Emoji/',
+            NpcItems: 'Plugins/GameFeatures/BattlepassS15/Content/Items/NpcItems/',
+            NpcTables: 'Plugins/GameFeatures/BattlepassS15/Content/Balance/DataTables/',
+            Quests: 'Plugins/GameFeatures/BattlepassS15/Content/Items/QuestItems/'
         }
 
         /**
@@ -172,8 +177,6 @@ export default class Wick {
                 const value = Array.isArray(this.sorting[type]) ? this.sorting[type][0] : this.sorting[type];
                 const filtered = !Array.isArray(this.sorting[type]) ? files.filter(f => f.startsWith(value)) : files.filter(f => f.startsWith(value) && f.includes(this.sorting[type][1]));
 
-                if(type === 'Ammo') console.log(filtered)
-
                 if(filtered.length > 3) {
                     if(!this.sorted[type]) this.sorted[type] = {};
 
@@ -182,12 +185,13 @@ export default class Wick {
                             const raw = extractor.get_file(f);
                             const data = new Package(raw);
                             const json = data.get_data();
-                            if(json.exports[0]) json._path = f;
-                            json._name = f.split('/').pop().split('.')[0];
-                            this.sorted[type][f.split('/').pop().split('.')[0]] = json;
-                            
+                            if(json.exports[0]) {
+                                json._path = f;
+                                json._name = f.split('/').pop().split('.')[0];
+                                this.sorted[type][type === 'NpcItems' ? f.split('/').pop().split('.')[0].split('TandemCharacterData_')[1] : f.split('/').pop().split('.')[0]] = json;
+                            }
                         } catch(error) {
-                            if(type === 'Ammo') console.error(error.message.replace(/\n/g, ''));
+                            // console.error(error.message.replace(/\n/g, ''));
                         }
                     });
 
@@ -199,6 +203,171 @@ export default class Wick {
 
             resolve(null);
         });
+    }
+
+    /**
+    getAllTandems(beautified=true) {
+        return Object.keys(this.sorted.NpcItems).map((tandem) => this.getTandem(tandem, beautified));
+    }
+    */
+
+    /**
+     * Returns data about a Tandem.
+     * 
+     * @param {String} id Name of a Tandem.
+     * @param {Boolean} beautified If the returned data is beautified or not.
+     * @returns Object
+     */
+    getTandem(id, beautified=true) {
+        if(!this.sorted.NpcItems[id]) return null;
+
+        const { [id]: { exports, imported_packages, _path } } = this.sorted.NpcItems;
+
+        const Tandem = exports[0];
+        const CID = Tandem.EntryListIcon.asset_path_name && Tandem.EntryListIcon.asset_path_name.split('HID')[1] && Tandem.EntryListIcon.asset_path_name.split('HID')[1].split('.')[0] ? "CID" + Tandem.EntryListIcon.asset_path_name.split('HID')[1].split('.')[0].split('-L')[0].replace(/-/g, '_') : null;
+
+        const NPCServices = this.sorted.NpcTables.NPCServices.exports[0];
+        const NPCQuests = this.sorted.NpcTables.NPCQuests.exports[0];
+        const NPCSales = this.sorted.NpcTables.NPCSales.exports[0];
+        const LootData = this.sorted.NpcTables.AthenaNPCBundleLootTierData_Client.exports[0];
+
+        const Services = Object.keys(NPCServices).map((key) => NPCServices[key]).filter(service => service.NPC && service.NPC.TagName === Tandem.GameplayTag.TagName);
+        const Quests = Object.keys(NPCQuests).map((key) => NPCQuests[key]).filter(service => service.NPC && service.NPC.TagName === Tandem.GameplayTag.TagName).map((quest) => quest.Quest ? this.sorted.Quests[quest.Quest.asset_path_name.split('.')[1]].exports[0] : null);
+        const Sales = Object.keys(NPCSales).map((key) => NPCSales[key]).filter(service => service.NPC && service.NPC.TagName === Tandem.GameplayTag.TagName).map(sale => {
+            const Data = LootData[Object.keys(LootData).find(l => l.startsWith(sale.LootTier))];
+
+            return Data;
+        });
+
+        const SalesBeautified = Sales.map((sale) => {
+            return {
+                group: sale.TierGroup,
+                weight: sale.Weight,
+                quotaLevel: sale.QuotaLevel,
+                loot: {
+                    tier: sale.LootTier,
+                    package: sale.LootPackage,
+                    previewPackage: sale.LootPreviewPackage,
+                    numPackageDrops: sale.NumLootPackageDrops,
+                    packageCategoryWeightArray: sale.LootPackageCategoryWeightArray,
+                    packageCategoryMinArray: sale.LootPackageCategoryMinArray,
+                    packageCategoryMaxArray: sale.LootPackageCategoryMaxArray,
+                    allowBonusDrops: sale.bAllowBonusLootDrops
+                },
+                streakBreaker: {
+                    currency: sale.StreakBreakerCurrency,
+                    pointsMin: sale.StreakBreakerPointsMin,
+                    pointsMax: sale.StreakBreakerPointsMax,
+                    pointsSpend: sale.StreakBreakerPointsSpend
+                },
+                gameplayTags: sale.GameplayTags.gameplay_tags ? sale.GameplayTags.gameplay_tags : null,
+                requiredGameplayTags: sale.RequiredGameplayTags.gameplay_tags ? sale.RequiredGameplayTags.gameplay_tags : null,
+                annotation: sale.Annotation ? sale.Annotation : null,
+            }
+        });
+
+        return !beautified ? {
+            ...Tandem,
+            Character: this.getCharacter(CID, false),
+            Services,
+            Quests,
+            Sales
+        } : {
+            ...this.getItemDefaultData(Tandem, true),
+            description: {
+                tandem: Tandem.AdditionalDescription ? Tandem.AdditionalDescription.string : null,
+                general: Tandem.GeneralDescription ? Tandem.GeneralDescription.string : null
+            },
+            name: Tandem.DisplayName ? Tandem.DisplayName.string : null,
+            tag: Tandem.GameplayTag ? Tandem.GameplayTag.TagName : null,
+            meta: {
+                hire: Services.find(service => service.ServiceTag.TagName === 'Tandem.Service.Hire') ? true : false,
+                bounty: Services.find(service => service.ServiceTag.TagName === 'Tandem.Service.PlayerBounty') ? true : false,
+            },
+            id: CID,
+            locations: Tandem.POILocations ? Tandem.POILocations.gameplay_tags : null,
+            character: CID ? this.getCharacter(CID) : null,
+            services: Services.map(service => {
+                return {
+                    chance: service.Chance,
+                    priority: service.Priority,
+                    tag: service.ServiceTag.TagName,
+                    ...service.ServiceTag.TagName.includes('Tandem.Service.Sell') ? {
+                        sale: SalesBeautified[Number(service.ServiceTag.TagName.split('Tandem.Service.Sell')[1]) - 1]
+                    } : {}
+                }
+            }),
+            sales: SalesBeautified,
+            quests: Quests.map(quest => {
+                return {
+                    ...this.getItemDefaultData(quest, true),
+                    rewards: quest.HiddenRewards.map(reward => {
+                        return {
+                            id: reward.TemplateId,
+                            quantity: reward.Quantity
+                        }
+                    }),
+                    categories: quest.bIncludedInCategories,
+                    profileType: quest.GrantToProfileType,
+                    expiration: quest.ExpirationDuration,
+                    type: quest.QuestType,
+                    description: quest.ShortDescription.string,
+                    completion: {
+                        text: quest.CompletionText.string
+                    },
+                    objectives: quest.Objectives.map(objective => {
+                        return {
+                            ...this.getItemDefaultData(objective, true),
+                            alternativeStatHandles: objective.AlternativeStatHandles,
+                            meta: {
+                                hidden: objective.bHidden,
+                                requirePrimaryMissionCompletion: objective.bRequirePrimaryMissionCompletion,
+                                canProgressInZone: objective.bCanProgressInZone,
+                                canProgressInZone: objective.bCanProgressInZone,
+                                count: objective.Count,
+                                dynamic: {
+                                    statusUpdateType: objective.DynamicStatusUpdateType,
+                                    statusUpdatePercentInterval: objective.DynamicStatusUpdatePercentInterval,
+                                    updateCompletionDelay: objective.DynamicUpdateCompletionDelay,
+                                    displayAnnouncementUpdate: objective.bDisplayDynamicAnnouncementUpdate
+                                },
+                                itemEvent: objective.ItemEvent,
+                                itemTemplateIdOverride: objective.ItemTemplateIdOverride,
+                                link: {
+                                    squadID: objective.LinkSquadID,
+                                    squadIndex: objective.LinkSquadIndex,
+                                    itemManagement: objective.LinkToItemManagement,
+                                    linkVaultTab: objective.LinkVaultTab
+                                },
+                                stage: objective.Stage
+                            },
+                            backendName: objective.BackendName,
+                            stats: objective.InlineObjectiveStats.map(stat => {
+                                return {
+                                    meta: {
+                                        inclusive: {
+                                            hasContextTags: stat.bHasInclusiveContextTags,
+                                            hasSourceTags: stat.bHasInclusiveSourceTags,
+                                            hasTargetTags: stat.bHasInclusiveTargetTags
+                                        },
+                                        templateIds: stat.TemplateIds,
+                                    },
+                                    condition: stat.Condition,
+                                    type: stat.Type,
+                                    conditions: stat.TagConditions.map(condition => {
+                                        return {
+                                            tag: condition.Tag ? condition.Tag.TagName : null,
+                                            type: condition.Type ? condition.Type : null,
+                                            required: condition.Require ? condition.Require : null,
+                                        }
+                                    })
+                                }
+                            })
+                        }
+                    })
+                }
+            })
+        }
     }
 
     /**
@@ -429,7 +598,7 @@ export default class Wick {
         id = Object.keys(this.sorted.Weapons).find(c => c.toLowerCase() === id.toLowerCase());
         if(!this.sorted.Weapons[id]) return null;
 
-        const { [id]: { exports, imported_packages, _path, _name } } = this.sorted.Weapons;
+        const { [id]: { exports, imported_packages, _name } } = this.sorted.Weapons;
 
         const Weapon = exports[0];
 
@@ -586,7 +755,7 @@ export default class Wick {
         const id = Object.keys(this.sorted.LoadingScreens).find(c => c.toLowerCase() === LSID.toLowerCase());
         if(!this.sorted.LoadingScreens[id]) return null;
 
-        const { [id]: { exports, imported_packages, _path } } = this.sorted.LoadingScreens;
+        const { [id]: { exports, imported_packages, export_type, _path } } = this.sorted.LoadingScreens;
 
         const LoadingScreen = exports[0];
         const Set = LoadingScreen.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(LoadingScreen) : null;
@@ -601,6 +770,11 @@ export default class Wick {
             id,
             definition: {
                 loadingscreen: _path
+            },
+            type: {
+                display: 'Loading Screen',
+                value: 'loading screen',
+                definition: export_type
             }
         };
     }
@@ -719,7 +893,10 @@ export default class Wick {
             displayAsset: O.DisplayAssetPath ? this.replaceStringName(O.DisplayAssetPath.asset_path_name) : null,
             decal: O.DecalTexture ? O.DecalTexture.asset_path_name : null,
             background: O.BackgroundImage ? this.replaceStringName(O.BackgroundImage.asset_path_name) : null,
-            cover: O.CoverArtImage ? this.replaceStringName(O.CoverArtImage.asset_path_name) : null
+            cover: O.CoverArtImage ? this.replaceStringName(O.CoverArtImage.asset_path_name) : null,
+            toast: O.ToastIcon ? this.replaceStringName(O.ToastIcon.asset_path_name) : null,
+            entryList: O.EntryListIcon ? this.replaceStringName(O.EntryListIcon.asset_path_name) : null,
+            sidePanelIcon: O.SidePanelIcon ? this.replaceStringName(O.SidePanelIcon.asset_path_name) : null
         }
     }
 
@@ -733,23 +910,26 @@ export default class Wick {
      */
     getItemDefaultData(Item, hideExtra) {
         const Series = Item.Series ? this.getSeries(Item.Series.import) : null;
-        const Set = Item.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSet(Item) : null;
+        const Set = Item.GameplayTags ? Item.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSet(Item) : null : null;
         const ShortDescription = Item.ShortDescription || Item.Description;
 
         return {
             images: this.getImages(Item),
-            description: Item.Description.string.trim(),
-            gameplayTags: Item.GameplayTags.gameplay_tags,
-            ...hideExtra ? {} : {
+            description: Item.Description ? Item.Description.string.trim() : null,
+            gameplayTags: Item.GameplayTags ? Item.GameplayTags.gameplay_tags : null,
+            ...hideExtra ? {
+                type: Item.export_type
+            } : {
                 type: {
                     display: ShortDescription.string,
                     value: ShortDescription ? ShortDescription.string.toLowerCase() : null,
-                    shop: Item.GameplayTags.gameplay_tags.includes('Cosmetics.Source.ItemShop'),
+                    shop: Item.GameplayTags ? Item.GameplayTags.gameplay_tags.includes('Cosmetics.Source.ItemShop') : null,
                 },
                 rarity: {
                     display: Item.Rarity,
                     value: Item.Rarity ? Item.Rarity.toLowerCase() : null,
-                    backend: `EFortRarity::${Item.Rarity}`
+                    backend: `EFortRarity::${Item.Rarity}`,
+                    definition: Item.export_type
                 },
                 set: Set,
                 series: Series,
