@@ -234,9 +234,7 @@ export default class Wick {
         const Services = Object.keys(NPCServices).map((key) => NPCServices[key]).filter(service => service.NPC && service.NPC.TagName === Tandem.GameplayTag.TagName);
         const Quests = Object.keys(NPCQuests).map((key) => NPCQuests[key]).filter(service => service.NPC && service.NPC.TagName === Tandem.GameplayTag.TagName).map((quest) => quest.Quest ? this.sorted.Quests[quest.Quest.asset_path_name.split('.')[1]].exports[0] : null);
         const Sales = Object.keys(NPCSales).map((key) => NPCSales[key]).filter(service => service.NPC && service.NPC.TagName === Tandem.GameplayTag.TagName).map(sale => {
-            const Data = LootData[Object.keys(LootData).find(l => l.startsWith(sale.LootTier))];
-
-            return Data;
+            return LootData[Object.keys(LootData).find(l => l.startsWith(sale.LootTier))];;
         });
 
         const SalesBeautified = Sales.map((sale) => {
