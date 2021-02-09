@@ -1,6 +1,6 @@
 {
   "name": "wickend",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "index.mjs",
   "type": "module",
   "scripts": {
@@ -17,7 +17,9 @@
   "directories": {
     "test": "test"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "express": "^4.17.1"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Tectors/Wick.git"

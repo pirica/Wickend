@@ -119,6 +119,8 @@ export default class Wick {
          */
         this.Package = Package;
 
+        this.extraction = {};
+
         if(data.extract) {
             console.log('Auto extract has started an "extracted" property, wait for the property to become true.');
             console.log('You can always call the function and wait for the value to come back as that\'s easier.');
@@ -127,39 +129,50 @@ export default class Wick {
     }
 
     /**
+     * Extracts a pak file.
+     * 
+     * @param file The pak file name.
+     * @param keyer The key for the pak file.
+     * 
+     * @returns Object
+     */
+    async extract(file, keyer) {
+        const path = this.path + file;
+        return new Promise(async (resolve) => {
+            const key = keyer || this.getKey(file) || this.chain.mainKey;
+            
+            const extractor = await new Promise((resolve) => {
+                try {
+                    resolve(new Extractor(path, key));
+                } catch(err) {
+                    if(this.log) this.log('\x1b[31m%s\x1b[0m', `Package ${file} failed using ${key}`);
+                    resolve(null);
+                }
+            });
+
+            if(extractor) {
+                if(this.extractors[file]) return;
+                this.extractors[file] = extractor;
+
+                const files = extractor.get_file_list();
+                this.sort(files, extractor);
+
+                if(this.log) this.log('\x1b[32m%s\x1b[0m', `Package ${file} worked with key ${key}: ${files.length} files`);
+
+                resolve(true);
+            } else {
+                resolve(null);
+            }
+        });
+    }
+
+    /**
      * Extracts all files in **directory** property defined in the *constructor*.
      * 
      * @returns Array
      */
-    async extract() {
-        await this.whiler(this.directory, (directory) => {
-            const path = this.path + directory;
-
-            return new Promise(async (resolve) => {
-                const key = this.getKey(directory) || this.chain.mainKey;
-                
-                const extractor = await new Promise((resolve) => {
-                    try {
-                        resolve(new Extractor(path, key));
-                    } catch(err) {
-                        if(this.log) this.log('\x1b[31m%s\x1b[0m', `Package ${directory} failed using ${key}`);
-                        resolve(null);
-                    }
-                });
-
-                if(extractor) {
-                    if(this.extractors[directory]) return;
-                    this.extractors[directory] = extractor;
-
-                    const files = extractor.get_file_list();
-                    this.sort(files, extractor);
-
-                    if(this.log) this.log('\x1b[32m%s\x1b[0m', `Package ${directory} worked with key ${key}: ${files.length} files`);
-    
-                    resolve(true);
-                } else resolve(null);
-            });
-        });
+    async extractAll() {
+        await this.whiler(this.directory, (directory) => new Promise(async (resolve) => resolve(await this.extract(directory))));
 
         this.extracted = true;
         return this.extractors;
@@ -172,6 +185,10 @@ export default class Wick {
      * @param {Class} extractor Extractor class.
      */
     sort(files, extractor) {
+        files.forEach((file) => {
+            this.extraction[file] = extractor;
+        });
+
         return new Promise(async (resolve) => {
             await this.whiler(Object.keys(this.sorting), (type) => {
                 const value = Array.isArray(this.sorting[type]) ? this.sorting[type][0] : this.sorting[type];
@@ -1000,26 +1017,40 @@ export default class Wick {
         return name.split('.')[0].replace('/Game', 'FortniteGame/Content') + '.uasset';
     }
 
+    getPackage(data) {
+        return new Package(data);
+    }
+
     /**
-     * Searches through all extractors and try to find the file and extract the JSON.
+     * Exports the file's object, by using the `wick.extraction` object full of paths.
      * 
      * @returns Object
      */
-    getJSON(file, extractor) {
-        let json = null;
+    exportObject(file, extractor) {
+        if(!extractor) extractor = this.extraction[file];
+        if(!extractor) return null;
 
-        Object.keys(this.extractors).map(e => this.extractors[e]).forEach((extractorr) => {
-            if(extractor) extractorr = extractor;
-            try {
-                const Pak = new Package(extractorr.get_file(file));
-                json._path = file;
-                json = Pak.get_data();
-            } catch(err) {
-                /* console.log(err); */
-            }
-        });
+        const Pak = this.getPackage(extractor.get_file(file));
+        const json = Pak.get_data();
+        json._path = file;
 
         return json;
+    }
+
+    /**
+     * Exports the file's texture, by using the `wick.extraction` object full of paths.
+     * 
+     * @returns Buffer
+     */
+    exportTexture(file, extractor) {
+        if(!extractor) extractor = this.extraction[file];
+        if(!extractor) return null;
+
+        const Pak = this.getPackage(extractor.get_file(file));
+        const texture = Pak.get_texture();
+        texture._path = file;
+
+        return texture;
     }
 
     /**

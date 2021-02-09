@@ -1,9 +1,10 @@
 import fetch from 'node-fetch';
-import { Wick } from '../index.mjs';
+import { Wick, Mappings } from '../index.mjs';
 
-const path = 'C:\\Games\\Fortnite\\FortniteGame\\Content\\Paks\\';
+const path = 'C:\\Program Files\\Epic Games\\Fortnite\\FortniteGame\\Content\\Paks\\';
 
 (async () => {
+    await Mappings();
     const chain = await (await fetch('https://benbotfn.tk/api/v1/aes')).json();
 
     const wick = new Wick({

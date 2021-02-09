@@ -34,20 +34,30 @@ Mappings();
         log: console.log
     });
 
-    await wick.extract();
+    await wick.extractAll();
 })();
 ```
 
 ### Functions
 
-## getJSON
-Searches through all extractors and try to find the file and extract the JSON.
+## exportObject
+Exports the file's object, by using the `wick.extraction` object full of paths.
 
 - **{String}** file The path.
 
 ### Usage
 ```js
-wick.getJSON('path');
+wick.exportObject('path');
+```
+
+## exportTexture
+Exports the file's texture, by using the `wick.extraction` object full of paths.
+
+- **{String}** file The path.
+
+### Usage
+```js
+fs.writeFileSync("asset.png", wick.exportTexture('path'));
 ```
 
 ## getTandem
@@ -183,11 +193,22 @@ wick.getCharacter();
 ```
 
 ## async extract
+Extracts a pak file.
+
+- **{String}** file The pak file name.
+- **{String}** keyer The key for the pak file.
+
+### Usage
+```js
+await wick.extract('pak', 'key');
+```
+
+## async extractAll
 Extracts all files in **directory** property defined in the *constructor*.
 
 ### Usage
 ```js
-await wick.extract();
+await wick.extractAll();
 ```
 
 ## getKey
