@@ -95,7 +95,8 @@ export default class Wick {
             Emojis: 'FortniteGame/Content/2dAssets/Emoji/',
             NpcItems: 'Plugins/GameFeatures/BattlepassS15/Content/Items/NpcItems/',
             NpcTables: 'Plugins/GameFeatures/BattlepassS15/Content/Balance/DataTables/',
-            Quests: 'Plugins/GameFeatures/BattlepassS15/Content/Items/QuestItems/'
+            Quests: 'Plugins/GameFeatures/BattlepassS15/Content/Items/QuestItems/',
+            textures: 'FortniteGame/Content/Characters/Player/Female/Medium/Bodies/F_Med_Soldier_01/Skins/BR_01/Textures/'
         }
 
         /**
@@ -185,19 +186,19 @@ export default class Wick {
      * @param {Class} extractor Extractor class.
      */
     sort(files, extractor) {
-        files.forEach((file) => {
+        this.while(files, ((file) => {
             this.extraction[file] = extractor;
-        });
+        }));
 
         return new Promise(async (resolve) => {
             await this.whiler(Object.keys(this.sorting), (type) => {
                 const value = Array.isArray(this.sorting[type]) ? this.sorting[type][0] : this.sorting[type];
                 const filtered = !Array.isArray(this.sorting[type]) ? files.filter(f => f.startsWith(value)) : files.filter(f => f.startsWith(value) && f.includes(this.sorting[type][1]));
-
+                
                 if(filtered.length > 3) {
                     if(!this.sorted[type]) this.sorted[type] = {};
 
-                    filtered.forEach((f) => {
+                    this.while(filtered, ((f) => {
                         try {
                             const raw = extractor.get_file(f);
                             const data = new Package(raw);
@@ -210,7 +211,7 @@ export default class Wick {
                         } catch(error) {
                             // console.error(error.message.replace(/\n/g, ''));
                         }
-                    });
+                    }));
 
                     resolve(type);
                 }
@@ -222,11 +223,29 @@ export default class Wick {
         });
     }
 
-    /**
-    getAllTandems(beautified=true) {
-        return Object.keys(this.sorted.NpcItems).map((tandem) => this.getTandem(tandem, beautified));
+    getEach(type='Tandem', beautified=true) {
+        const name = `get${type}`;
+        const sorting = this.getTypeSorting(type);
+
+        if(!this[name]) return console.error(`Function *${name}* not found, please use a function name or short-hand name.`);
+        else if(!sorting) console.error(`${name} is not in the sorting object!`);
+
+        return Object.keys(sorting).map((id) => this[name](id, beautified));
     }
-    */
+
+    getTypeSorting(type) {
+        return {
+            Tandem: this.sorted.NpcItems,
+            Glider: this.sorted.Gliders,
+            MusicPack: this.sorted.MusicPacks,
+            Toy: this.sorted.Toys,
+            Character: this.sorted.Characters
+            // Glider: this.sorted.Gliders,
+            // Glider: this.sorted.Gliders,
+            // Glider: this.sorted.Gliders,
+            // Glider: this.sorted.Gliders,
+        }[type];
+    }
 
     /**
      * Returns data about a Tandem.
@@ -401,7 +420,7 @@ export default class Wick {
         const { [id]: { exports, imported_packages, _path } } = this.sorted.Gliders;
 
         const Glider = exports[0];
-        const Set = Glider.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(Glider) : null;
+        const Set = Glider.GameplayTags ? Glider.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(Glider) : null : null;
         const Series = Glider.Series ? this.getSeries(Glider.Series.import) : null;
 
        return !beautified ? {
@@ -415,8 +434,8 @@ export default class Wick {
                 glider: _path
             },
             sounds: {
-                open: Glider.OpenSound ? this.getItemDefaultData(Glider.OpenSound.asset_path_name) : null,
-                close: Glider.CloseSound ? this.getItemDefaultData(Glider.CloseSound.asset_path_name) : null,
+                open: Glider.OpenSound ? this.replaceStringName(Glider.OpenSound.asset_path_name) : null,
+                close: Glider.CloseSound ? this.replaceStringName(Glider.CloseSound.asset_path_name) : null,
             }
         };
     }
@@ -437,7 +456,7 @@ export default class Wick {
         const { [id]: { exports, imported_packages, _path } } = this.sorted.MusicPacks;
 
         const MusicPack = exports[0];
-        const Set = MusicPack.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(MusicPack) : null;
+        const Set = MusicPack.GameplayTags ? MusicPack.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(MusicPack) : null : null;
         const Series = MusicPack.Series ? this.getSeries(MusicPack.Series.import) : null;
 
        return !beautified ? {
@@ -826,6 +845,45 @@ export default class Wick {
         };
     }
 
+    getTextures(exporte, type) {
+        let Material = null;
+        let asset_path_name = null;
+
+        if(!type) return null;
+
+        if(type.includes('BodyPart')) {
+            const { MaterialOverrides } = exporte;
+
+            if(!MaterialOverrides) return;
+            asset_path_name = MaterialOverrides[0].OverrideMaterial.asset_path_name;
+    
+            Material = this.exportObject(this.replaceStringName(asset_path_name).replace(/FortniteGame\/Content\//g, ''));
+        } else if(type.includes('HeadData')) {
+            const { SkeletalMesh } = exporte;
+
+            if(!SkeletalMesh) return;
+
+            asset_path_name = SkeletalMesh.asset_path_name.replace(/\/Game\//g, 'FortniteGame/Content/').replace(/Meshes/, 'Materials').replace(/Mesh/, 'Materials').split('.')[0] + '.uasset';
+
+            Material = this.exportObject(asset_path_name);
+        }
+
+        if(!Material || !Material.exports) return;
+
+
+        const TextureParameterValues = Material.exports[0].TextureParameterValues;
+        if(!TextureParameterValues) return;
+
+        const textures = Object.keys(this.extraction).filter(e => e.includes(asset_path_name.split('/Materials')[0].replace(/\/Game\/Characters\/Player/g, '') + '/Textures/'));
+
+        textures.forEach((texture) => {
+            const name = texture.split('_')[texture.split('_').length - 1].split('.')[0].toUpperCase();
+
+            // console.log(name);
+            // console.log(texture);
+        });
+    }
+
     /**
      * Returns data about a Character.
      * 
@@ -842,33 +900,55 @@ export default class Wick {
         const { [id]: { exports, imported_packages, _path } } = this.sorted.Characters;
 
         const Character = exports[0];
+
+        if(!Character.HeroDefinition) return null;
         const Hero = Object.keys(this.sorted.Heroes).find(h => this.sorted.Heroes[h].exports[0].export_index === Character.HeroDefinition.import);
         const HeroDefinition = this.sorted.Heroes[Hero].exports[0];
-        const Set = Character.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(Character) : null;
+        const Set = Character.GameplayTags ? Character.GameplayTags.gameplay_tags.find(tag => tag.includes('Cosmetics.Set.')) ? this.getSetObject(Character) : null : null;
 
         const Specializations = this.sorted.Specializations[Object.keys(this.sorted.Specializations).find(s => s === HeroDefinition.Specializations[0].asset_path_name.split('/').pop().split('.')[0])].exports[0];
         const Meshes = [];
-        const Parts = [];
 
         const Series = Character.Series ? this.getSeries(Character.Series.import) : null;
 
+        const Parts = {
+            body: {
+                mesh: null,
+                textures: [],
+            },
+            head: {
+                mesh: null,
+                textures: []
+            }
+        }
+
+        let Gender = null;
+        let Size = null;
+
         Specializations.CharacterParts.forEach((part) => {
-            const json = this.getJSON(this.replaceStringName(part.asset_path_name));
+            const json = this.exportObject(this.replaceStringName(part.asset_path_name)) || this.exportObject(this.replaceStringName(part.asset_path_name).split('FortniteGame/Content/')[1]);
+
             if(json) {
                 const path = this.replaceStringName(json.exports[1].SkeletalMesh.asset_path_name);
 
-                if(json.exports) json.exports.forEach((exporte) => {
-                    const { MaterialOverrides } = exporte;
+                const Textures = {};
 
-                    if(!MaterialOverrides) return;
+                if(json.exports && json.exports[0]) {
+                    const type = json.exports[0].export_type;
 
-                    const { OverrideMaterial: { asset_path_name } } = MaterialOverrides[0];
-                    const { TextureParameterValues } = this.getJSON(this.replaceStringName(asset_path_name).replace(/FortniteGame\/Content\//g, '')).exports[0];
+                    if(type.includes('BodyPart') && json.exports[1] && json.exports[1].BodyTypesPermitted) {
+                        Gender = json.exports[1].GenderPermitted;
+                        Size = json.exports[1].BodyTypesPermitted;
 
-                });
+                        Parts.body.mesh = this.replaceStringName(json.exports[1].SkeletalMesh.asset_path_name);
+                    }
+
+                    if(type.includes('HeadData')) {
+                        Parts.head.mesh = this.replaceStringName(json.exports[1].SkeletalMesh.asset_path_name);
+                    }
+                }
                 
                 if(json.exports) Meshes.push(json.exports);
-                Parts.push(path);
             }
         });
 
@@ -879,18 +959,19 @@ export default class Wick {
             Parts,
             Meshes,
             Series,
-            Set
+            Set,
+            Size,
+            Gender
         } : {
             ...this.getItemDefaultData(Character),
             id,
-            parts: {
-                body: Parts[0],
-                head: Parts[1]
-            },
             definition: {
                 hero: `FortniteGame/Content/Athena/Heroes/${Hero}.uasset`,
                 character: _path
-            }
+            },
+            gender: Gender,
+            size: Size,
+            parts: Parts
         };
     }
 
@@ -936,7 +1017,7 @@ export default class Wick {
                 type: Item.export_type
             } : {
                 type: {
-                    display: ShortDescription.string,
+                    display: ShortDescription ? ShortDescription.string : null,
                     value: ShortDescription ? ShortDescription.string.toLowerCase() : null,
                     shop: Item.GameplayTags ? Item.GameplayTags.gameplay_tags.includes('Cosmetics.Source.ItemShop') : null,
                 },
@@ -948,7 +1029,7 @@ export default class Wick {
                 },
                 set: Set,
                 series: Series,
-                name: Item.DisplayName.string
+                name: Item.DisplayName ? Item.DisplayName.string : null
             }
         }
     }
@@ -962,11 +1043,13 @@ export default class Wick {
     getSet(Item) {
         const Set = this.getSetObject(Item);
 
+        if(!Set) return null;
+
         return {
-            name: Set.DisplayName.string,
-            namespace: Set.DisplayName.string.namespace,
-            tag: Set.Tag.TagName,
-            description: Set.Description.string
+            name: Set.DisplayName ? Set.DisplayName.string : null,
+            namespace: Set.DisplayName ? Set.DisplayName.string.namespace : null,
+            tag: Set.Tag ? Set.Tag.TagName : null,
+            description: Set.Description ? Set.Description.string : null
         };
     }
 
@@ -1017,8 +1100,8 @@ export default class Wick {
         return name.split('.')[0].replace('/Game', 'FortniteGame/Content') + '.uasset';
     }
 
-    getPackage(data) {
-        return new Package(data);
+    getPackage(data, secondary) {
+        return new Package(data, secondary);
     }
 
     /**
@@ -1030,11 +1113,16 @@ export default class Wick {
         if(!extractor) extractor = this.extraction[file];
         if(!extractor) return null;
 
-        const Pak = this.getPackage(extractor.get_file(file));
-        const json = Pak.get_data();
-        json._path = file;
-
-        return json;
+        try {
+            const Pak = this.getPackage(extractor.get_file(file));
+            const json = Pak.get_data();
+            json._path = file;
+    
+            return json;
+        } catch(err) {
+            console.error(err);
+            return null;
+        }
     }
 
     /**
@@ -1042,12 +1130,20 @@ export default class Wick {
      * 
      * @returns Buffer
      */
-    exportTexture(file, extractor) {
-        if(!extractor) extractor = this.extraction[file];
+    exportTexture(file, json=true, extractor) {
+        const main = file + '.uasset';
+
+        if(!extractor) extractor = this.extraction[main];
         if(!extractor) return null;
 
-        const Pak = this.getPackage(extractor.get_file(file));
-        const texture = Pak.get_texture();
+        const files = extractor.get_file_list().toString();
+
+        const type = files.includes(file + '.uptnl') ? 'uptnl' : files.includes(file + '.ubulk') ? 'ubulk' : null;
+
+        const secondary = type ? extractor.get_file(file + `.${type}`) : null;
+
+        const Pak = this.getPackage(extractor.get_file(main), secondary);
+        const texture = json ? Pak.get_data() : Pak.get_texture();
         texture._path = file;
 
         return texture;
@@ -1075,6 +1171,19 @@ export default class Wick {
         while(length--) await func(keys ? Object.keys(array)[length] : array[length], length);
       
         return true;
+    }
+
+    /**
+     * forEach function using *while*.
+     * 
+     * @param {(Object|Array)} array To be looped.
+     * @param {Function} func Function on each element.
+     * @param {Boolean} keys If param *array* is a Object.
+     */
+    while(array, func, keys=false) {
+        let length = keys ? Object.keys(array).length : array.length;
+        
+        while(length--) func(keys ? Object.keys(array)[length] : array[length], length);
     }
 
     /**
