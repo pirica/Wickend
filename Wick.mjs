@@ -1,5 +1,6 @@
 import nodeWick from 'node-wick';
 import fs from 'fs';
+import { UV_FS_O_FILEMAP } from 'constants';
 
 const { Extractor, Package } = nodeWick;
 const filter = (f) => f.endsWith('.pak');
@@ -189,6 +190,10 @@ export default class Wick {
         this.while(files, ((file) => {
             this.extraction[file] = extractor;
         }));
+
+        // const textures = files.filter(e => e.includes('Textures/'));
+
+        // if(textures[0]) this.exportTexture(textures[0].replace(/\.uasset/g, ''));
 
         return new Promise(async (resolve) => {
             await this.whiler(Object.keys(this.sorting), (type) => {
@@ -858,7 +863,7 @@ export default class Wick {
             asset_path_name = MaterialOverrides[0].OverrideMaterial.asset_path_name;
     
             Material = this.exportObject(this.replaceStringName(asset_path_name).replace(/FortniteGame\/Content\//g, ''));
-        } else if(type.includes('HeadData')) {
+        } else if(type.includes('HeadData') || type.includes('CharacterPart')) {
             const { SkeletalMesh } = exporte;
 
             if(!SkeletalMesh) return;
@@ -867,21 +872,36 @@ export default class Wick {
 
             Material = this.exportObject(asset_path_name);
         }
-
+        
         if(!Material || !Material.exports) return;
-
 
         const TextureParameterValues = Material.exports[0].TextureParameterValues;
         if(!TextureParameterValues) return;
 
-        const textures = Object.keys(this.extraction).filter(e => e.includes(asset_path_name.split('/Materials')[0].replace(/\/Game\/Characters\/Player/g, '') + '/Textures/'));
+        const Textures = {};
 
-        textures.forEach((texture) => {
-            const name = texture.split('_')[texture.split('_').length - 1].split('.')[0].toUpperCase();
+        TextureParameterValues.forEach((parameterValue) => {
+            const Name = parameterValue.ParameterInfo.Name;
 
-            // console.log(name);
-            // console.log(texture);
+            const type = Name === 'M' ? 'M' : Name === 'Diffuse' ? 'D' : Name === 'Normals' ? 'N' : Name === 'SpecularMasks' ? 'S' : Name === 'SkinFX_Mask' ? 'FX' : null;
+            const path = Material._path.replace(/Materials\//, 'Textures/').replace(/\.uasset/, `_${type}`);
+
+            if(!this.extraction[path + '.uasset']) return;
+
+            Textures[type] = path;
         });
+
+        return Textures;
+    }
+
+    getPartType(export_type) {
+        if(!export_type) return null;
+
+        return export_type.includes('BodyPart') ? 'Body' : export_type.includes('HeadData') ? 'Head' : export_type.includes('CharacterPart') ? 'Head' : export_type.includes('FaceData') ? 'Accessory' : null;
+    }
+
+    fileExists(file) {
+        return this.extraction[file] ? true : false;
     }
 
     /**
@@ -915,10 +935,12 @@ export default class Wick {
             body: {
                 mesh: null,
                 textures: [],
+                parts: []
             },
             head: {
                 mesh: null,
-                textures: []
+                textures: [],
+                parts: []
             }
         }
 
@@ -928,27 +950,62 @@ export default class Wick {
         Specializations.CharacterParts.forEach((part) => {
             const json = this.exportObject(this.replaceStringName(part.asset_path_name)) || this.exportObject(this.replaceStringName(part.asset_path_name).split('FortniteGame/Content/')[1]);
 
-            if(json) {
-                const path = this.replaceStringName(json.exports[1].SkeletalMesh.asset_path_name);
-
-                const Textures = {};
-
+            if(json) { /** If the exported object does exist. */
                 if(json.exports && json.exports[0]) {
-                    const type = json.exports[0].export_type;
+                    const export_type = json.exports[0].export_type;
+                    const type = this.getPartType(export_type);
+ 
+                    switch(type) {
+                        case 'Body': {
+                            Gender = json.exports[1].GenderPermitted;
+                            Size = json.exports[1].BodyTypesPermitted;
+    
+                            Parts.body.mesh = this.replaceStringName(json.exports[1].SkeletalMesh ? json.exports[1].SkeletalMesh.asset_path_name : json.exports[0].AnimClass.asset_path_name.replace(/_AnimBP/g, '').replace(/_Skeleton_AnimBlueprint/g, ''));
+                            Parts.body.textures = this.getTextures(json.exports[1], export_type);
+                        } break;
 
-                    if(type.includes('BodyPart') && json.exports[1] && json.exports[1].BodyTypesPermitted) {
-                        Gender = json.exports[1].GenderPermitted;
-                        Size = json.exports[1].BodyTypesPermitted;
+                        case 'Head': {
+                            Parts.head.mesh = this.replaceStringName(json.exports[1].SkeletalMesh ? json.exports[1].SkeletalMesh.asset_path_name : json.exports[0].AnimClass.asset_path_name.replace(/_AnimBP/g, '').replace(/_Skeleton_AnimBlueprint/g, ''));
+                            Parts.head.textures = this.getTextures(json.exports[1], export_type);
+                        } break;
 
-                        Parts.body.mesh = this.replaceStringName(json.exports[1].SkeletalMesh.asset_path_name);
-                    }
+                        case 'Accessory': {
+                            /** Get accessory. */
+                            const accessory = this.exportObject(this.fileExists(this.replaceStringName(part.asset_path_name)) ? this.replaceStringName(part.asset_path_name) : this.fileExists(this.replaceStringName(part.asset_path_name).split('FortniteGame/Content/')[1]) ? this.replaceStringName(part.asset_path_name).split('FortniteGame/Content/')[1] : null);
+                            const accessoryType = part.asset_path_name.includes('FaceAccessories') ? 'head' : null;
+                            
+                            if(accessoryType) {
+                                Parts[accessoryType].parts.push({
+                                    data: accessory._path,
+                                    type: accessory.exports[1].CharacterPartType,
+                                    attachedToSocket: accessory.exports[1].bAttachToSocket,
+                                    mesh: accessory.exports[1].SkeletalMesh ? this.replaceStringName(accessory.exports[1].SkeletalMesh.asset_path_name) : null,
+                                    animation: {
+                                        blueprint: accessory.exports[0].AnimClass ? this.replaceStringName(accessory.exports[0].AnimClass.asset_path_name) : null
+                                    },
+                                    index: Number(accessory.exports[0].export_index),
+                                    textures: []
+                                });
+                            } else if(this.log) this.log(`Unknown Accessory type: ${part.asset_path_name}`);
+                        } break;
 
-                    if(type.includes('HeadData')) {
-                        Parts.head.mesh = this.replaceStringName(json.exports[1].SkeletalMesh.asset_path_name);
+                        default: {
+                            if(this.log) this.log(`Unknown Part type: ${type}`, json);
+                        } break;
                     }
                 }
                 
                 if(json.exports) Meshes.push(json.exports);
+            } else {
+                /** Determine if part is a specific type. */
+                const type = part.asset_path_name.includes('Bodies/') ? 'body' : part.asset_path_name.includes('Heads/') ? 'head' : part.asset_path_name.includes('FaceAcc') ? 'Accessory' : null;
+                const path = this.fileExists(this.replaceStringName(part.asset_path_name)) ? this.replaceStringName(part.asset_path_name) : this.fileExists(this.replaceStringName(part.asset_path_name).split('FortniteGame/Content/')[1]) ? this.replaceStringName(part.asset_path_name).split('FortniteGame/Content/')[1] : null;
+
+                if(type) {
+                    if(type === 'Accessory') {
+                    }
+                    else Parts[type].mesh = path;
+                } else if(this.log) this.log(`Unknown asset type on fallback: ${part.asset_path_name}`);
             }
         });
 

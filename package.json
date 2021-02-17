@@ -22,11 +22,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Tectors/Wick.git"
+    "url": "git+https://github.com/Tectors/Wickend.git"
   },
   "bugs": {
-    "url": "https://github.com/Tectors/Wick/issues"
+    "url": "https://github.com/Tectors/Wickend/issues"
   },
-  "homepage": "https://github.com/Tectors/Wick#readme",
+  "homepage": "https://github.com/Tectors/Wickend#readme",
   "description": ""
 }
