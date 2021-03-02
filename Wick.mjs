@@ -3,7 +3,7 @@ import fs from 'fs';
 import { UV_FS_O_FILEMAP } from 'constants';
 
 const { Extractor, Package } = nodeWick;
-const filter = (f) => f.endsWith('.pak');
+const filter = (f) => f.endsWith('.ucas');
 
 /**
  * Easier way to use node-wick.
@@ -26,6 +26,7 @@ export default class Wick {
      * @param {Function} data.filter Filter of any file in the pak files.
      * - (f) => f.endsWith('.pak')
      * @param {Function} data.log Log function.
+     * @param {Boolean} data.debug If debugging is enabled. (only works if log exists)
      */
     constructor(data={
         extract: true,
@@ -33,8 +34,16 @@ export default class Wick {
         path: null,
         extractors: {},
         filter,
-        log: console.log
+        log: console.log,
+        debug: true
     }) {
+        /**
+         * Enable debugging.
+         * 
+         * @type Boolean
+         */
+        this.debugging = data.debug;
+
         /**
          * Path to the pak files.
          * 
@@ -96,8 +105,8 @@ export default class Wick {
             Emojis: 'FortniteGame/Content/2dAssets/Emoji/',
             NpcItems: 'Plugins/GameFeatures/BattlepassS15/Content/Items/NpcItems/',
             NpcTables: 'Plugins/GameFeatures/BattlepassS15/Content/Balance/DataTables/',
-            Quests: 'Plugins/GameFeatures/BattlepassS15/Content/Items/QuestItems/',
-            textures: 'FortniteGame/Content/Characters/Player/Female/Medium/Bodies/F_Med_Soldier_01/Skins/BR_01/Textures/'
+            Quests: 'Plugins/GameFeatures/BattlepassS15/Content/Items/QuestItems/'
+            // textures: 'FortniteGame/Content/Characters/Player/Female/Medium/Bodies/F_Med_Soldier_01/Skins/BR_01/Textures/'
         }
 
         /**
@@ -142,13 +151,14 @@ export default class Wick {
         const path = this.path + file;
         return new Promise(async (resolve) => {
             const key = keyer || this.getKey(file) || this.chain.mainKey;
-            
+
             const extractor = await new Promise((resolve) => {
                 try {
                     resolve(new Extractor(path, key));
                 } catch(err) {
                     if(this.log) this.log('\x1b[31m%s\x1b[0m', `Package ${file} failed using ${key}`);
                     resolve(null);
+                    console.log(path)
                 }
             });
 
@@ -850,11 +860,16 @@ export default class Wick {
         };
     }
 
+    debug(text, ...extra) {
+        if(!this.log || !this.debugging) return;
+        return this.log('\x1b[34m[\x1b[36mDEBUG\x1b[34m]', `\x1b[37m${text}\x1b[34m`, ...extra);
+    }
+
     getTextures(exporte, type) {
         let Material = null;
         let asset_path_name = null;
 
-        if(!type) return null;
+        if(!type) return;
 
         if(type.includes('BodyPart')) {
             const { MaterialOverrides } = exporte;
@@ -880,13 +895,60 @@ export default class Wick {
 
         const Textures = {};
 
+        let pathPattern = null;
+
         TextureParameterValues.forEach((parameterValue) => {
             const Name = parameterValue.ParameterInfo.Name;
 
             const type = Name === 'M' ? 'M' : Name === 'Diffuse' ? 'D' : Name === 'Normals' ? 'N' : Name === 'SpecularMasks' ? 'S' : Name === 'SkinFX_Mask' ? 'FX' : null;
             const path = Material._path.replace(/Materials\//, 'Textures/').replace(/\.uasset/, `_${type}`);
 
-            if(!this.extraction[path + '.uasset']) return;
+            if(!this.extraction[path + '.uasset'] && type) {
+                this.debug('Texture fallback started.', 'getCharacter, starts at line 898.');
+
+                const textureStart = Material._path.replace(/Materials\//, 'Textures/');
+
+                if(pathPattern) {
+                    Textures[type] = pathPattern + `_${type}.uasset`;
+                } else {
+                    const TBD = [
+                        textureStart.replace(/\.uasset/, `_01_${type}`).replace(/_Commando/, '').replace(/_Body/, ''),
+                        textureStart.replace(/\.uasset/, `_01_${type}`).replace(/_Commando/, '').replace(/_Body/, '').replace(/_MED/, ''),
+                        textureStart.replace(/\.uasset/, `_${type}`).replace(/_Commando/, '').replace(/_Body/, ''),
+                        textureStart.replace(/\.uasset/, `_${type}`).replace(/_Commando/, '').replace(/_Body/, '').replace(/_MED/, ''),
+                        textureStart.replace(/\.uasset/, `_01_${type}`).replace(/_Commando/, ''),
+                        textureStart.replace(/\.uasset/, `_01_${type}`).replace(/_Commando/, '').replace(/_MED/, ''),
+                        textureStart.replace(/\.uasset/, `_01_${type}`).replace(/_Commando/, '').replace(/_Body/, ''),
+                        textureStart.replace(/\.uasset/, `_01_${type}`).replace(/_Commando/, '').replace(/_Body/, '').replace(/_MED/, ''),
+                        textureStart.replace(/\.uasset/, `_01_${type}`).replace(/_Commando/, ''),
+                        textureStart.replace(/\.uasset/, `_01_${type}`).replace(/_Commando/, '').replace(/_MED/, ''),
+                        textureStart.replace(/\.uasset/, `_${type}`).replace(/_Commando/, ''),
+                        textureStart.replace(/\.uasset/, `_${type}`).replace(/_Commando/, '').replace(/_MED/, ''),
+                        textureStart.replace(/\.uasset/, `_${type}`),
+                        textureStart.replace(/\.uasset/, `_${type}`).replace(/_MED/, ''),
+                        textureStart.replace(/\.uasset/, `_02_${type.toLowerCase()}`).replace(/_Commando/, '').replace(/_Body/, ''),
+                        textureStart.replace(/\.uasset/, `_02_${type.toLowerCase()}`).replace(/_Commando/, '').replace(/_Body/, '').replace(/_MED/, ''),
+                        textureStart.replace(/\.uasset/, `_02_${type.toLowerCase()}`).replace(/_Commando/, ''),
+                        textureStart.replace(/\.uasset/, `_02_${type.toLowerCase()}`).replace(/_Commando/, '').replace(/_MED/, ''),
+                        textureStart.replace(/\.uasset/, `_02_${type.toLowerCase()}`).replace(/_Commando/, '').replace(/_Body/, ''),
+                        textureStart.replace(/\.uasset/, `_02_${type.toLowerCase()}`).replace(/_Commando/, '').replace(/_Body/, '').replace(/_MED/, ''),
+                        textureStart.replace(/\.uasset/, `_02_${type.toLowerCase()}`).replace(/_Commando/, ''),
+                        textureStart.replace(/\.uasset/, `_02_${type.toLowerCase()}`).replace(/_Commando/, '').replace(/_MED/, '')
+                    ];
+    
+                    this.while(TBD, (texture) => {
+                        const pather = texture.split('Textures/')[1] ? texture.split('Textures/')[0] + 'Textures/' + texture.split('Textures/')[1].replace(texture.split('Textures/')[1].charAt(0), "T") + '.uasset' : null;
+                        if(this.extraction[pather] || this.extraction[texture + '.uasset']) {
+                            Textures[type] = this.extraction[pather] ? pather : texture + '.uasset';
+    
+                            pathPattern = (this.extraction[pather] ? pather : texture + '.uasset').split(`_${type}.uasset`)[0];
+                        }
+                    });
+                }
+
+                if(!Object.keys(Textures)[0]) this.debug('Texture fallback failed.', 'getCharacter, starts at line \x1b[37m898\x1b[34m.', '\x1b[36mtags:', 'fallback for textures', 'failing', 'textures', 'error', 'fail', 'exception', 'fallback', 'character', 'function', 'line 898');
+                return;
+            }
 
             Textures[type] = path;
         });
@@ -897,7 +959,7 @@ export default class Wick {
     getPartType(export_type) {
         if(!export_type) return null;
 
-        return export_type.includes('BodyPart') ? 'Body' : export_type.includes('HeadData') ? 'Head' : export_type.includes('CharacterPart') ? 'Head' : export_type.includes('FaceData') ? 'Accessory' : null;
+        return export_type.includes('BodyPart') ? 'Body' : export_type.includes('HeadData') ? 'Head' : export_type.includes('CharacterPart') ? 'Head' : export_type.includes('FaceData') || export_type.includes('Hats/') ? 'Accessory' : null;
     }
 
     fileExists(file) {
@@ -972,7 +1034,7 @@ export default class Wick {
                         case 'Accessory': {
                             /** Get accessory. */
                             const accessory = this.exportObject(this.fileExists(this.replaceStringName(part.asset_path_name)) ? this.replaceStringName(part.asset_path_name) : this.fileExists(this.replaceStringName(part.asset_path_name).split('FortniteGame/Content/')[1]) ? this.replaceStringName(part.asset_path_name).split('FortniteGame/Content/')[1] : null);
-                            const accessoryType = part.asset_path_name.includes('FaceAccessories') ? 'head' : null;
+                            const accessoryType = part.asset_path_name.includes('FaceAccessories') || part.asset_path_name.includes('Heads/') ? 'head' : part.asset_path_name.includes('Hats/') ? 'body' : null;
                             
                             if(accessoryType) {
                                 Parts[accessoryType].parts.push({
@@ -986,6 +1048,7 @@ export default class Wick {
                                     index: Number(accessory.exports[0].export_index),
                                     textures: []
                                 });
+
                             } else if(this.log) this.log(`Unknown Accessory type: ${part.asset_path_name}`);
                         } break;
 

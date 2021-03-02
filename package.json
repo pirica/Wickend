@@ -1,6 +1,6 @@
 {
   "name": "wickend",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "main": "index.mjs",
   "type": "module",
   "scripts": {
@@ -9,7 +9,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "google-spreadsheet": "^3.1.15",
     "node": "^14.15.2",
     "node-fetch": "^2.6.1",
     "node-wick": "^5.0.0"
@@ -18,7 +17,14 @@
     "test": "test"
   },
   "devDependencies": {
-    "express": "^4.17.1"
+    "express": "^4.17.1",
+    "utf8": "^3.0.0",
+    "uuid": "^8.3.2",
+    "ws": "^7.4.3",
+    "base-64": "^1.0.0",
+    "body-parser": "^1.19.0",
+    "brotli": "^1.3.2",
+    "fnbr": "^1.4.1"
   },
   "repository": {
     "type": "git",
