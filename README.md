@@ -7,6 +7,9 @@ Please the information at [node-wick](https://github.com/SirWaddles/node-wick#ex
 Examples of how to use this library.
 
 ### Create mappings.
+
+**NOTE: Mappings aren't being written correctly so running this function will give you a error about it**
+
 A function that uses benbot's mappings files and endpoint and creates a *mappings* folder that has 2 folders classes, and enums and the mapping file called mappings.usmap.
 
 ```js
