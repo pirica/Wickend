@@ -1,6 +1,9 @@
 # Wickend
 An easier way to use the popularly known nodejs package called [node-wick](https://github.com/SirWaddles/node-wick) made by [SirWaddles](https://github.com/SirWaddles).
 
+## No further updates..
+# Use [Unreal.js](https://github.com/Sprayxe/unreal.js), I have other things to do sorry.
+
 Please the information at [node-wick](https://github.com/SirWaddles/node-wick#extracting) as it is important due to the only way this library will work.
 
 ## Example
